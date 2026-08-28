@@ -1,92 +1,110 @@
-# Invoicely — Product Scope
+# Invoicely — Product Scope (v2)
+
+> v2 (2026-08-28): reshaped by the owner from freelancer-tool to small-business
+> tool — multi-staff roles (maker-checker), GST, owner-created staff accounts.
 
 ## 1. Background & Problem Statement
 
-Freelancers and very small businesses invoice clients through spreadsheets or Word templates. There is no single place to see who owes what, which invoices are overdue, or how much was earned this month. Chasing payments depends on memory.
+Small businesses invoice clients through spreadsheets and Word templates. There
+is no shared place for the team to see who owes what, which invoices are
+overdue, or what was earned this month — and no control over which staff member
+may actually send an invoice or touch the money numbers.
 
-This project is also a portfolio piece: it must demonstrate production-shaped backend competence (Java 21, Spring Boot 3, Spring Security, PostgreSQL) with a small frontend, built and designed with intent — unlike the three earlier code-only repos.
+This is also a portfolio piece: production-shaped backend competence (Java 21,
+Spring Boot 3, Spring Security with roles, PostgreSQL) plus a designed frontend.
 
 ## 2. Proposed Solution
 
-A web app where a freelancer:
+A web app for one small business with multiple staff:
 
-- Registers and logs in (each user sees only their own data)
-- Manages **clients** (name, email, billing address)
-- Creates **invoices** for a client with line items (description, qty, unit price); totals are computed, never typed
-- Moves invoices through a strict lifecycle: `DRAFT → SENT → PAID`, with `SENT → OVERDUE` applied automatically when the due date passes, and `OVERDUE → PAID` on payment
-- Records **payments** against an invoice (partial payments allowed; invoice becomes PAID when fully covered)
-- Sees a **dashboard**: outstanding total, overdue count, revenue this month
+- **Registration creates the business and its OWNER account** in one step.
+- The **owner adds STAFF accounts** directly (email + temporary password;
+  staff must change it on first login). No invite emails.
+- Anyone manages **clients**; **invoices** hold line items with computed totals
+  and **GST** (if the business is GST-registered, rate snapshotted at send).
+- **Maker-checker lifecycle**: staff build drafts and submit them;
+  only the owner approves & sends, records payments, and sees revenue.
+- `SENT → OVERDUE` happens automatically after the due date.
+- **Owner-only dashboard**: outstanding total, overdue count, revenue this
+  month, approval queue. Staff land on the invoice list.
 
-Hard rules (enforced in the backend, mirrored in the UI):
+Hard rules (enforced in the API, mirrored in the UI):
 
-- A SENT/PAID invoice's line items cannot be edited — only DRAFT invoices are editable
-- Illegal status jumps (e.g. DRAFT → PAID) are rejected
+- Only DRAFT invoices are editable; only PENDING_APPROVAL can be approved/rejected
+- Illegal status transitions rejected (409)
 - A payment cannot exceed the invoice's remaining balance
-- All money values are exact decimals in one currency (SGD) — no floats, no multi-currency
+- STAFF cannot send invoices, record payments, view dashboard/revenue, or manage team
+- Money is exact decimal, single currency (SGD)
 
-Phases: **Phase 1 — API** (complete, tested, documented backend). **Phase 2 — UI** (minimal React frontend: login, client list, invoice list/detail, dashboard).
+Phases: **Phase 1 — API**, **Phase 2 — UI** (SaaS app layer + paper document
+layer per the Design Direction).
 
-## 3. Scope of Work
+## 3. Roles & Permissions
 
-### Phase 1 — API (the résumé core)
-| Layer | Task | Effort |
-|-------|------|--------|
-| Backend | Project skeleton, Docker Postgres, Flyway baseline | 0.5 wk |
-| Backend | Domain model + migrations (User, Client, Invoice, LineItem, Payment) | 0.5 wk |
-| Backend | Client + Invoice CRUD with DTOs, validation, Problem Details errors | 1 wk |
-| Backend | JWT auth + per-user ownership enforcement | 1 wk |
-| Backend | Status lifecycle, payments, overdue job, dashboard/report queries | 1 wk |
-| Backend | Tests (unit + Testcontainers), CI, Swagger, README | 1 wk |
+| Capability | STAFF | OWNER |
+|---|---|---|
+| Manage clients | ✅ | ✅ |
+| Create/edit DRAFT invoices | ✅ | ✅ |
+| Submit for approval | ✅ | ✅ (or send directly) |
+| Approve & send / reject | ❌ | ✅ |
+| Record payments | ❌ | ✅ |
+| Dashboard / revenue figures | ❌ | ✅ |
+| Manage staff accounts, business & GST settings | ❌ | ✅ |
 
-### Phase 2 — UI (minimal, designed)
-| Layer | Task | Effort |
-|-------|------|--------|
-| Frontend | React app: auth screens, client list | 0.5 wk |
-| Frontend | Invoice list + invoice detail (the signature screen), payment entry | 1 wk |
-| Frontend | Dashboard, empty/error/loading states, design polish | 0.5 wk |
+## 4. Invoice Lifecycle
 
-**Total: ~7 weeks part-time.** Cut line: Phase 1 alone is a complete, presentable project.
+States: `DRAFT → PENDING_APPROVAL → SENT → (OVERDUE) → PAID`
 
-## 4. User-Facing Behaviour
+| From \ To | DRAFT | PENDING_APPROVAL | SENT | OVERDUE | PAID |
+|-----------|-------|------------------|------|---------|------|
+| DRAFT | — | ✅ submit (any role) | ✅ owner direct send | ❌ | ❌ |
+| PENDING_APPROVAL | ✅ owner rejects (with note) | — | ✅ owner approve & send | ❌ | ❌ |
+| SENT | ❌ | ❌ | — | ✅ auto (past due) | ✅ full payment |
+| OVERDUE | ❌ | ❌ | ❌ | — | ✅ full payment |
+| PAID | ❌ | ❌ | ❌ | ❌ | — |
 
-### 4.1 Auth
-Register (email + password, min 8 chars) and log in. Errors are specific: `"An account with this email already exists."`, `"Email or password is incorrect."` Session expiry returns the user to login with `"Your session expired. Log in again to continue."`
+All ❌ → HTTP 409 Problem Details naming the current status. Role violations
+(staff attempting send) → 403 with `"Only the owner can send invoices."`
 
-### 4.2 Clients
-List, create, edit. A client with invoices cannot be deleted — the delete action explains: `"This client has invoices. Archive it instead."` (archive hides it from pickers, keeps history).
+## 5. User-Facing Behaviour
 
-### 4.3 Invoices
-- Creating an invoice starts it in DRAFT with an auto-assigned number (`INV-2026-0001`, per user, sequential).
-- DRAFT: line items editable, actions **Send** and **Delete**.
-- SENT: read-only items, actions **Record payment**; due date visible; badge turns to OVERDUE automatically after due date.
-- PAID: fully read-only, shows payment history.
-- Attempting to edit a non-draft invoice shows: `"Sent invoices can't be edited. Create a credit note or a new invoice."` (credit notes are out of scope — the message names the real-world escape hatch.)
+### 5.1 Auth & team
+Register = business name + owner email/password. Owner's Team page lists staff,
+adds them (temp password shown once), deactivates them. First staff login forces
+a password change before anything else. Copy: `"Set a new password to continue."`
 
-### 4.4 Payments
-Payment form pre-fills the remaining balance. Overpayment is blocked inline: `"Amount exceeds the remaining balance (S$420.00)."` Full payment flips status to PAID and shows `"Invoice INV-2026-0001 marked as paid."`
+### 5.2 GST
+Business settings (owner): GST-registered toggle + rate (default 9%).
+Invoices of a registered business show `Subtotal / GST 9% / Total SGD`; the rate
+is **snapshotted when the invoice is sent**, so later setting changes never
+rewrite sent invoices. Unregistered businesses show no GST line.
 
-### 4.5 Validation summary
-Every rule is enforced twice: once in the UI (inline, before submit) and once in the API (authoritative — returns 400/409 Problem Details). The API is the source of truth; the UI is a convenience layer.
+### 5.3 Invoices
+- Builder (DRAFT): form beside a live paper-document preview. Staff button:
+  **Submit for approval**. Owner buttons: **Send** (direct) or via queue.
+- PENDING_APPROVAL: read-only to staff; owner sees **Approve & send** /
+  **Reject** (note required, invoice returns to DRAFT with the note visible).
+- Editing a non-draft: `"Sent invoices can't be edited. Create a new invoice."`
+- Numbering `INV-<year>-<seq>` per business, assigned at creation.
 
-## 5. Decision Matrix — status transitions
+### 5.4 Payments (owner only)
+Form pre-fills remaining balance; overpay blocked:
+`"Amount exceeds the remaining balance (S$1,047.80)."` Full payment → PAID,
+toast `"Invoice INV-2026-0042 marked as paid."`
 
-| From \ To | DRAFT | SENT | OVERDUE | PAID |
-|-----------|-------|------|---------|------|
-| DRAFT | — | ✅ send | ❌ | ❌ |
-| SENT | ❌ | — | ✅ auto (due date passed) | ✅ via full payment |
-| OVERDUE | ❌ | ❌ | — | ✅ via full payment |
-| PAID | ❌ | ❌ | ❌ | — |
-
-All ❌ transitions return HTTP 409 with a Problem Details body naming the current status.
+### 5.5 Validation layering
+Every rule enforced twice: UI inline (convenience) and API (authoritative,
+400/403/409 Problem Details).
 
 ## 6. Out of Scope
 
-- Multi-currency, tax/GST computation, credit notes, recurring invoices
-- Sending real emails (Send = status change only)
-- PDF generation (documented as a plausible v2)
-- Teams/roles — strictly one user, their data
-- Mobile app
+Multi-currency · real emails (send = status + document) · PDF export & public
+invoice links (v2 — document layer is built to make this cheap) · credit notes ·
+recurring invoices · multiple businesses per user · password reset flows beyond
+forced first-login change.
 
 ## 7. Rollout Plan
 
-Solo portfolio project; "rollout" = public GitHub repo meeting the house standard (OKF bundle, branch protection, CI green). Phase 1 target: ~5 weeks from repo creation. Phase 2: +2 weeks. Deployed demo (Railway/Render/Fly.io) at the end of Phase 2 so recruiters can click, not clone.
+Public GitHub repo to house standard. Phase 1 (API): ~7–8 weeks part-time while
+learning Java/Spring. Phase 2 (UI): ~2.5 weeks. Deployed demo with a seeded
+business (1 owner + 1 staff) so reviewers can try both roles.

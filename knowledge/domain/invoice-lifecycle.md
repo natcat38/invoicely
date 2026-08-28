@@ -1,32 +1,35 @@
 ---
 type: Domain Process
 title: Invoice Lifecycle
-description: The invoice status machine — DRAFT, SENT, OVERDUE, PAID — and the rules governing each transition.
-tags: [domain, invoice, state-machine]
+description: The maker-checker invoice status machine — DRAFT, PENDING_APPROVAL, SENT, OVERDUE, PAID — and which role may drive each transition.
+tags: [domain, invoice, state-machine, rbac]
 timestamp: 2026-08-28T00:00:00Z
 ---
 
 # Schema
 
-States: `DRAFT`, `SENT`, `OVERDUE`, `PAID`.
+States: `DRAFT`, `PENDING_APPROVAL`, `SENT`, `OVERDUE`, `PAID`.
 
-| From \ To | DRAFT | SENT | OVERDUE | PAID |
-|-----------|-------|------|---------|------|
-| DRAFT | — | user sends | ✗ | ✗ |
-| SENT | ✗ | — | auto: due date passed | full payment |
-| OVERDUE | ✗ | ✗ | — | full payment |
-| PAID | ✗ | ✗ | ✗ | — |
+| From \ To | DRAFT | PENDING_APPROVAL | SENT | OVERDUE | PAID |
+|-----------|-------|------------------|------|---------|------|
+| DRAFT | — | any role submits | owner direct send | ✗ | ✗ |
+| PENDING_APPROVAL | owner rejects (note required) | — | owner approve & send | ✗ | ✗ |
+| SENT | ✗ | ✗ | — | auto: past due | full payment |
+| OVERDUE | ✗ | ✗ | ✗ | — | full payment |
+| PAID | ✗ | ✗ | ✗ | ✗ | — |
 
-Illegal transitions are rejected in the service layer with HTTP 409.
-Only DRAFT invoices have editable line items. SENT → OVERDUE is persisted by a
-daily scheduled job **and** computed on read, so display is always correct.
+Two failure axes, tested separately: illegal state transition → 409; legal
+transition by the wrong role → 403 (see [Business & roles](/domain/business-and-roles.md)).
+Only DRAFT invoices have editable line items. Sending snapshots the GST rate
+(see [Money](/domain/money.md)). SENT → OVERDUE is persisted by a daily job and
+also computed on read.
 
 # Examples
 
-Sending: `POST /invoices/{id}/send` (DRAFT only). Payment that clears the
-balance flips SENT/OVERDUE to PAID; see [Money](/domain/money.md).
+Staff flow: `POST /invoices/{id}/submit` → owner sees it in the approval queue →
+`POST /invoices/{id}/send` or `POST /invoices/{id}/reject` (note returns it to
+DRAFT). Owner may also send their own DRAFT directly.
 
 # Citations
 
-Source of truth: `docs/Invoice_Product_Scope.md` §5 decision matrix and
-`docs/Invoice_Tech_Scope.md` §2 core logic.
+`docs/Invoice_Product_Scope.md` §4 · `docs/Invoice_Tech_Scope.md` §2.

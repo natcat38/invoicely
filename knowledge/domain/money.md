@@ -16,9 +16,15 @@ Derived values (never accepted as client input):
 
 ```
 lineTotal    = quantity × unitPrice
-invoiceTotal = Σ lineTotal
+subtotal     = Σ lineTotal
+gst          = business GST-registered ? subtotal × gstRateSnapshot : 0
+invoiceTotal = subtotal + gst
 balance      = invoiceTotal − Σ payments.amount
 ```
+
+GST is a business-level setting (registered + rate, default 9%). The rate is
+**snapshotted onto the invoice at send time** and never rewritten — later
+setting changes affect only future invoices.
 
 # Examples
 
