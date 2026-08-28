@@ -25,8 +25,11 @@ A web app for one small business with multiple staff:
 - **Maker-checker lifecycle**: staff build drafts and submit them;
   only the owner approves & sends, records payments, and sees revenue.
 - `SENT → OVERDUE` happens automatically after the due date.
-- **Owner-only dashboard**: outstanding total, overdue count, revenue this
-  month, approval queue. Staff land on the invoice list.
+- **Owner-only dashboard**, four headline stats: outstanding total,
+  overdue amount + count, revenue this month, awaiting-approval count
+  (links into the queue). Staff land on the invoice list.
+- Owner's **Team page**: per staff member — name, email, active status,
+  invoices-created count, last-active date; Add and Deactivate actions.
 
 Hard rules (enforced in the API, mirrored in the UI):
 
@@ -73,14 +76,26 @@ Register = business name + owner email/password. Owner's Team page lists staff,
 adds them (temp password shown once), deactivates them. First staff login forces
 a password change before anything else. Copy: `"Set a new password to continue."`
 
-### 5.2 GST
-Business settings (owner): GST-registered toggle + rate (default 9%).
+### 5.2 Clients
+A client holds: company name, contact person, email, phone, billing address,
+**UEN**, and free-text **payment notes** (e.g. PayNow/bank details) — UEN and
+payment notes print on the invoice document. Archive rule as before.
+
+### 5.2a Business settings & GST
+Business settings (owner): **default payment terms** (7/14/30 days — new
+invoices default their due date to issue date + terms, editable per invoice),
+plus GST-registered toggle + rate (default 9%).
 Invoices of a registered business show `Subtotal / GST 9% / Total SGD`; the rate
 is **snapshotted when the invoice is sent**, so later setting changes never
 rewrite sent invoices. Unregistered businesses show no GST line.
 
 ### 5.3 Invoices
-- Builder (DRAFT): form beside a live paper-document preview. Staff button:
+- **List**: columns number, status, client, total, balance due, due date
+  (money mono right-aligned). Status filter tabs. Default view is
+  **"needs attention first"**: OVERDUE, then PENDING_APPROVAL, then newest —
+  the list is a to-do, not an archive.
+- Builder (DRAFT): **side-by-side split** — form left, live paper-document
+  preview right (stacks on mobile). Staff button:
   **Submit for approval**. Owner buttons: **Send** (direct) or via queue.
 - PENDING_APPROVAL: read-only to staff; owner sees **Approve & send** /
   **Reject** (note required, invoice returns to DRAFT with the note visible).
@@ -88,7 +103,8 @@ rewrite sent invoices. Unregistered businesses show no GST line.
 - Numbering `INV-<year>-<seq>` per business, assigned at creation.
 
 ### 5.4 Payments (owner only)
-Form pre-fills remaining balance; overpay blocked:
+Form captures amount, date, **method** (Bank transfer / PayNow / Cash /
+Cheque), and a free-text note. Pre-fills remaining balance; overpay blocked:
 `"Amount exceeds the remaining balance (S$1,047.80)."` Full payment → PAID,
 toast `"Invoice INV-2026-0042 marked as paid."`
 

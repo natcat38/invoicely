@@ -67,17 +67,21 @@ ADR the choice).
 ## 3. Data Model (V1 migration)
 
 ```
-businesses (id, name, gst_registered bool, gst_rate NUMERIC(5,4), created_at)
+businesses (id, name, gst_registered bool, gst_rate NUMERIC(5,4),
+            default_payment_terms_days int, created_at)
 users      (id, business_id FK, email UNIQUE, password_hash,
             role 'OWNER'|'STAFF', must_change_password bool, active bool, created_at)
-clients    (id, business_id FK, name, email, address, archived bool)
+clients    (id, business_id FK, name, contact_person, email, phone, address,
+            uen, payment_notes text, archived bool)
 invoices   (id, business_id FK, client_id FK, created_by FK->users,
             number, status, issue_date, due_date,
             gst_rate_snapshot NUMERIC(5,4) NULL, rejection_note text NULL,
             sent_at, sent_by FK->users NULL, created_at,
             UNIQUE(business_id, number))
 line_items (id, invoice_id FK, description, quantity, unit_price, position)
-payments   (id, invoice_id FK, amount, paid_at, note, recorded_by FK->users)
+payments   (id, invoice_id FK, amount, paid_at,
+            method 'BANK_TRANSFER'|'PAYNOW'|'CASH'|'CHEQUE', note,
+            recorded_by FK->users)
 ```
 
 ⚠️ Ownership boundary is the **business**, not the user: every query filters by
@@ -97,7 +101,10 @@ Vlad Mihalcea. `@DataJpaTest` proof. ADR-0001: business as ownership boundary.
 
 **Task 3 — CRUD.** Records as DTOs, Bean Validation, Problem Details,
 pagination + status/client filters. Client archive rule (no delete with
-invoices).
+invoices). New invoice due date defaults to issue date + business
+`default_payment_terms_days`. Invoice list default sort = "needs attention":
+`ORDER BY` status priority (OVERDUE, PENDING_APPROVAL first) then created
+desc — a CASE expression or a sort-rank column on the enum.
 
 **Task 4 — Auth & team.**
 - `POST /auth/register` → business + OWNER (transactional, one screen)
@@ -116,8 +123,10 @@ invoices).
 - `POST /invoices/{id}/reject` (owner; PENDING_APPROVAL → DRAFT; note required)
 - `POST /invoices/{id}/payments` (owner; balance rule; flips to PAID at 0)
 - `@Scheduled` daily overdue job + computed-on-read status
-- `GET /dashboard` (owner): outstanding, overdue count, revenue/month,
-  pending-approval queue — aggregate queries
+- `GET /dashboard` (owner): outstanding total, overdue amount + count,
+  revenue this month, awaiting-approval count + queue — aggregate queries
+- `GET /team` gains per-staff aggregates: invoices-created count, last-active
+  (max of created/sent timestamps — no separate tracking table)
 - ADR-0004: numbering strategy
 
 **Task 6 — Quality.** Unit: status×role matrix, GST/balance math, numbering.
