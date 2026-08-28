@@ -1,45 +1,67 @@
 # Invoicely — Design Direction (Phase 2 UI)
 
-The subject is the paper invoice: a document with a number, ruled rows, a sum, and a stamp. The UI borrows the document's own vernacular instead of generic dashboard chrome. Audience: the freelancer themself (daily tool) and, implicitly, recruiters skimming screenshots — the invoice detail screen is the money shot.
+**Core decision (owner: Natalie, 2026-08-28, chosen from 3 prototyped variants):**
+the product has two visual layers with different jobs —
 
-## Tokens
+1. **The app** — a modern SaaS workspace where the business builds and manages
+   invoices. Sidebar navigation, panels, stat cards. Familiar, efficient.
+2. **The document** — the invoice as the client sees it: a paper-and-ink
+   artifact rendered inside the app as a live preview, and later exportable.
+   All "invoice personality" (serif number, ledger rules, status stamp) lives
+   here, never in the app chrome.
 
-**Color** — cool paper and ink, one stamp accent:
-- `--paper: #FAFBFC` (background)
-- `--ink: #1B2733` (primary text — ink blue-black, not pure black)
-- `--rule: #D6DEE6` (ledger rules, borders)
-- `--accent: #1E5AA8` (actions, links — fountain-pen blue)
-- `--stamp-red: #C0392B` (OVERDUE only)
-- `--stamp-green: #1E7B4F` (PAID only)
+The contrast is the signature: quiet SaaS chrome framing a crafted paper
+document. The document looks the same wherever it appears.
 
-Dark mode: invert paper/ink (`#141A21` / `#E8EDF2`), keep both stamps.
+## App layer tokens (variant B)
 
-**Type**
-- Display/headings: **Fraunces** (a warm, slightly old-style serif — the letterhead voice), used sparingly: page titles and the invoice number.
-- Body/UI: **Inter**, sentence case throughout.
-- Numbers: **JetBrains Mono** with `font-variant-numeric: tabular-nums` for every amount, quantity, and date — columns of money must align like a ledger.
+- Background `#F8F9FB`, surface `#FFFFFF`, border `#E2E8F0`, text `#0F172A`,
+  muted `#64748B`, sidebar `#0F172A`, accent `#4F46E5` (primary actions),
+  warning badge amber, paid badge green.
+- Type: **Inter** throughout; **JetBrains Mono** with `tabular-nums` for all
+  amounts in cards and tables.
+- Layout: fixed dark sidebar (Dashboard, Invoices, Clients, Team, Settings),
+  content area with breadcrumb + page header + actions right-aligned.
+- Components lean on shadcn/ui patterns (cards, badges, tables, dialogs).
 
-**Layout.** Single centered column, max-width 960px, generous whitespace. Tables use horizontal ledger rules only (no vertical lines, no zebra stripes). Left-align text, right-align numbers, always.
+## Document layer tokens (variant A)
 
-**Signature element — the stamp.** Invoice status is rendered as a rubber stamp: uppercase letterspaced text in a 1.5px border, rotated −3°, slightly textured opacity, in stamp-red (OVERDUE) or stamp-green (PAID); DRAFT and SENT are quiet ink-outline badges, unrotated — only terminal/alarming states earn the stamp. It appears on the invoice detail header and as a small version in list rows. This is the one memorable device; everything else stays disciplined.
+- Paper `#FFFFFF` on app background, hairline border `#D6DEE6`, ink `#1B2733`,
+  fountain-pen blue `#1E5AA8`, stamp red `#C0392B` (OVERDUE), stamp green
+  `#1E7B4F` (PAID).
+- Type: **Fraunces** for the invoice number, Inter for body, JetBrains Mono
+  tabular for all figures.
+- Ruled ledger table: horizontal rules only; text left, numbers right.
+- Totals block: subtotal → GST 9% → total SGD → payments → balance due.
+- **The stamp**: rotated −3°, letterspaced mono, red OVERDUE / green PAID on
+  the document only; DRAFT and SENT are quiet outline badges in the app chrome.
 
-## Screens
+## Where each layer appears
 
-- **Invoice detail** is composed *as the invoice*: Fraunces `INV-2026-0001` top-left, client block like an address block, line items as a ruled table, total row emphasized, stamp overlapping the header. Actions (Send, Record payment) sit in a quiet toolbar above the document, not inside it.
-- **Invoice list**: dense ledger table — number, client, issue date, due date, amount (right-aligned mono), status badge. Filter tabs by status.
-- **Dashboard**: three stat lines (outstanding, overdue count, revenue this month) set as ledger summary rows, not card grids; then the five most recent invoices.
-- **Auth**: centered document card on paper background, nothing clever.
+- Invoice **detail** page: app chrome (breadcrumb, status badge, actions,
+  stat cards for total/paid/balance) framing the document preview below.
+- Invoice **builder** (DRAFT): app-layer form panels on the left/top; the
+  document preview updates live as line items change — the maker sees what the
+  client will get. Staff see "Submit for approval"; owner sees "Approve & send".
+- Client-facing rendering (v2: PDF export/public link) reuses the document
+  layer unchanged.
 
 ## States & motion
 
-- Empty states invite action: `"No invoices yet. Create your first one."`
-- Errors use Problem Details detail text verbatim where user-appropriate.
-- Motion: one moment only — the stamp "presses" on when an invoice becomes PAID (scale 1.15→1 with a quick ease-out). `prefers-reduced-motion` disables it. No scroll animations, no skeleton shimmer (plain "Loading…" rows).
+- Empty states invite action ("No invoices yet. Create your first one.").
+- Errors surface Problem Details text where user-appropriate.
+- One motion moment: the stamp presses onto the document when an invoice
+  becomes PAID (scale 1.15→1, ease-out); `prefers-reduced-motion` disables it.
+  No scroll animations; plain "Loading…" rows, no skeleton shimmer.
 
 ## Quality floor
 
-Keyboard focus visible on all interactive elements; forms labelled; contrast ≥ 4.5:1 (checked against both themes); responsive to 375px (tables scroll horizontally in a container, page never does).
+Visible keyboard focus, labelled forms, contrast ≥ 4.5:1, responsive to 375px
+(tables scroll inside their container; the page never scrolls horizontally).
 
-## Self-check performed
+## Provenance
 
-The default temptation for "invoice app" is a SaaS dashboard: sidebar, stat cards, blue gradient. Rejected — sidebar replaced by a two-item top nav, stat cards by ledger rows, and the personality spent on the document metaphor + stamp instead. Cream/terracotta and dark/acid-green cliché palettes avoided; this is a cool paper-and-ink scheme derived from the subject.
+Chosen from three throwaway mockups
+(`invoice-project-docs/mockups/prototype-invoice-detail.html`, kept locally):
+A paper-document, B SaaS dashboard, C terminal ledger. Decision: B for the
+app, A for the document, C rejected. Dark-mode app theme deferred to polish.
