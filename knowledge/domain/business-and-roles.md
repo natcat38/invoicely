@@ -2,6 +2,7 @@
 type: Domain Entity
 title: Business & Roles
 description: The business is the ownership boundary; users are OWNER or STAFF with a maker-checker permission split.
+resource: ../../docs/Invoice_Tech_Scope.md
 tags: [domain, rbac, security]
 timestamp: 2026-08-28T00:00:00Z
 ---
