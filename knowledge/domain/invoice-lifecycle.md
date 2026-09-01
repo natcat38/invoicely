@@ -2,6 +2,7 @@
 type: Domain Process
 title: Invoice Lifecycle
 description: The maker-checker invoice status machine — DRAFT, PENDING_APPROVAL, SENT, OVERDUE, PAID — and which role may drive each transition.
+resource: ../../docs/Invoice_Tech_Scope.md
 tags: [domain, invoice, state-machine, rbac]
 timestamp: 2026-08-28T00:00:00Z
 ---

@@ -2,6 +2,7 @@
 type: Domain Rule
 title: Money
 description: Representation and arithmetic rules for all monetary amounts — BigDecimal, single currency, derived totals.
+resource: ../../docs/Invoice_Tech_Scope.md
 tags: [domain, money, invariants]
 timestamp: 2026-08-28T00:00:00Z
 ---
