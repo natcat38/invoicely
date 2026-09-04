@@ -72,8 +72,8 @@ All ❌ → HTTP 409 Problem Details naming the current status. Role violations
 ## 5. User-Facing Behaviour
 
 ### 5.1 Auth & team
-Register = business name + owner email/password. Owner's Team page lists staff,
-adds them (temp password shown once), deactivates them. First staff login forces
+Register = business name + owner name + owner email/password. Owner's Team page
+lists staff, adds them (name, email, temp password shown once), deactivates them. First staff login forces
 a password change before anything else. Copy: `"Set a new password to continue."`
 
 ### 5.2 Clients
@@ -82,8 +82,9 @@ A client holds: company name, contact person, email, phone, billing address,
 payment notes print on the invoice document. Archive rule as before.
 
 ### 5.2a Business settings & GST
-Business settings (owner): **default payment terms** (7/14/30 days — new
-invoices default their due date to issue date + terms, editable per invoice),
+Business settings (owner): **default payment terms** (7/14/30 days, a new
+business starts on 30 — new invoices default their due date to issue date +
+terms, editable per invoice),
 plus GST-registered toggle + rate (default 9%).
 Invoices of a registered business show `Subtotal / GST 9% / Total SGD`; the rate
 is **snapshotted when the invoice is sent**, so later setting changes never

@@ -7,7 +7,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
+
+	// Public and shared: the domain tests in com.invoicely.domain import it too.
 
 	@Bean
 	@ServiceConnection
