@@ -145,6 +145,16 @@ public class Invoice {
         }
     }
 
+    /**
+     * Drops every line item. Used when a draft is replaced wholesale: working
+     * out which of the submitted lines are edits of existing rows and which are
+     * new would buy nothing, since only drafts can be edited and nothing yet
+     * refers to a line item by id.
+     */
+    public void clearLineItems() {
+        lineItems.clear();
+    }
+
     /** Records money received. Returns the payment so a note can be attached. */
     public Payment addPayment(BigDecimal amount, LocalDate paidAt, PaymentMethod method, User recordedBy) {
         Payment payment = new Payment(this, amount, paidAt, method, recordedBy);
