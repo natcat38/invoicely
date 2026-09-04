@@ -4,7 +4,7 @@ A Spring Boot REST API for managing clients, invoices, and payments. Built by ha
 
 ## Purpose
 
-Demonstrate production-shaped backend competence in the exact stack Singapore enterprise job ads list: **Java 21, Spring Boot 3, Spring Security (JWT), Spring Data JPA, PostgreSQL, tests, Docker**. One well-finished service with auth, migrations, and CI beats several tutorial follow-alongs.
+Demonstrate production-shaped backend competence in the exact stack Singapore enterprise job ads list: **Java 25, Spring Boot 4, Spring Security (JWT), Spring Data JPA, PostgreSQL, tests, Docker**. One well-finished service with auth, migrations, and CI beats several tutorial follow-alongs.
 
 The domain: users register, create clients, issue invoices with line items, record payments, and see invoice status change (DRAFT → SENT → PAID / OVERDUE). Small enough to finish, rich enough to force real design decisions (ownership rules, status transitions, money handling, reporting queries).
 

@@ -6,7 +6,7 @@
 
 ## 1. Overview
 
-**Stack:** Java 21 · Spring Boot 3.x · Spring Security (JWT via OAuth2 Resource
+**Stack:** Java 25 · Spring Boot 4.1 · Spring Security (JWT via OAuth2 Resource
 Server, role claims) · Spring Data JPA · PostgreSQL 16 · Flyway · Testcontainers
 · springdoc-openapi · Docker Compose · GitHub Actions.
 Phase 2: React + Vite + TS, TanStack Query, shadcn/ui-style components, CSS
@@ -91,10 +91,13 @@ attribution, not access control.
 
 ## 4. Task Notes
 
-**Task 1 — Skeleton.** As before: Initializr (web, data-jpa, postgresql,
-flyway, validation, security, oauth2-resource-server, actuator), compose.yaml
-Postgres 16, boots green. Add `ci.yml` (`./mvnw verify`); re-run /protect-repo
-after first PR so `verify` gates main.
+**Task 1 — Skeleton.** ✅ Done. Initializr (web, data-jpa, postgresql, flyway,
+validation, security, oauth2-resource-server, actuator, testcontainers),
+compose.yaml Postgres 16, `V1__baseline.sql`, boots green, `ci.yml` runs
+`./mvnw verify`. Re-run /protect-repo after the first PR so `verify` gates main.
+⚠️ Boot 4 renamed starters: web is `spring-boot-starter-webmvc`, resource server
+is `spring-boot-starter-security-oauth2-resource-server`, and each starter has a
+matching `-test` companion. See ADR-0005 for the version choice.
 
 **Task 2 — Domain.** All six tables in V1. Entities + repos, relationships per
 Vlad Mihalcea. `@DataJpaTest` proof. ADR-0001: business as ownership boundary.
@@ -149,3 +152,5 @@ Forced password-change interstitial. All states with Product Scope copy.
   request (check flag in the auth filter/service, not just at login).
 - One ADR per starred decision above; commit per vertical slice; knowledge/
   bundle updated when a concept changes.
+- ADR-0005 (written first, out of numeric order) records the Java 25 / Spring
+  Boot 4 choice; ADR-0001..0004 stay reserved for the decisions named above.

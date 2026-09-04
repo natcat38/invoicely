@@ -10,8 +10,8 @@ is no shared place for the team to see who owes what, which invoices are
 overdue, or what was earned this month — and no control over which staff member
 may actually send an invoice or touch the money numbers.
 
-This is also a portfolio piece: production-shaped backend competence (Java 21,
-Spring Boot 3, Spring Security with roles, PostgreSQL) plus a designed frontend.
+This is also a portfolio piece: production-shaped backend competence (Java 25,
+Spring Boot 4, Spring Security with roles, PostgreSQL) plus a designed frontend.
 
 ## 2. Proposed Solution
 
