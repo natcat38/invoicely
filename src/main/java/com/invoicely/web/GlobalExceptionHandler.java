@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -41,6 +42,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem =
                 ProblemDetail.forStatusAndDetail(exception.getStatus(), exception.getMessage());
         problem.setType(URI.create("/problems/" + exception.getType()));
+        return problem;
+    }
+
+    /**
+     * A caller who is authenticated, and in the right business, but whose role
+     * does not permit this action — {@code @PreAuthorize} rejecting a STAFF
+     * token on an owner-only endpoint.
+     *
+     * <p>Without this, Spring Security answers with its own bare 403 body, and
+     * the API would have two different error shapes depending on which layer
+     * said no. It stays a 403: this is the role axis. The state axis is 409,
+     * and a row belonging to another business is 404 (ADR-0001) — three
+     * separate failures that must never be conflated.
+     */
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    ProblemDetail handleAuthorizationDenied(AuthorizationDeniedException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN, "Your role does not allow this.");
+        problem.setType(URI.create("/problems/insufficient-role"));
         return problem;
     }
 
