@@ -1,6 +1,10 @@
 package com.invoicely.web;
 
-import jakarta.servlet.http.HttpServletRequest;
+import com.invoicely.domain.Role;
+import com.invoicely.security.JwtService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
 /**
@@ -8,49 +12,61 @@ import org.springframework.stereotype.Component;
  *
  * <p>ADR-0001 says the business id may only ever come from the caller's
  * identity, never from a request body or query parameter. This class is the one
- * place that identity is read, so there is exactly one thing for Task 4 to
- * replace: today it reads two development-only headers, and afterwards it will
- * read the {@code biz} and {@code sub} claims off the JWT.
+ * place that identity is read — which is why Task 4 changed only this file to
+ * move the whole application from development headers to real tokens. Every
+ * controller and service was already asking the right question.
  *
- * <p><b>The headers are a stand-in, not a feature.</b> They are trivially
- * forgeable, which is fine only because this slice runs behind a permit-all
- * {@link com.invoicely.SecurityConfig} that is itself not deployable. Nothing
- * outside this class knows they exist, so swapping the source of truth does not
- * touch a single controller or service.
+ * <p>The claims are trusted because the token's signature has already been
+ * verified by the time any of this runs. What is <em>not</em> read from the
+ * token is anything that can change between logins — whether the account is
+ * still active, whether the password still needs replacing. Those come from the
+ * database on each request, in
+ * {@link com.invoicely.security.AccountStateFilter}.
  */
 @Component
 public class CurrentRequest {
 
-    static final String BUSINESS_HEADER = "X-Business-Id";
-    static final String USER_HEADER = "X-User-Id";
-
-    private final HttpServletRequest request;
-
-    CurrentRequest(HttpServletRequest request) {
-        this.request = request;
-    }
-
     /** The business every query in this request is scoped to. */
     public Long businessId() {
-        return required(BUSINESS_HEADER);
+        Object claim = jwt().getClaim(JwtService.BUSINESS_CLAIM);
+        if (claim instanceof Number businessId) {
+            return businessId.longValue();
+        }
+        throw new UnidentifiedCallerException("This token carries no business.");
     }
 
     /** The user recorded as {@code created_by} on anything this request creates. */
     public Long userId() {
-        return required(USER_HEADER);
+        try {
+            return Long.valueOf(jwt().getSubject());
+        } catch (NumberFormatException notOurToken) {
+            throw new UnidentifiedCallerException("This token carries no usable user id.");
+        }
     }
 
-    private Long required(String header) {
-        String value = request.getHeader(header);
-        if (value == null || value.isBlank()) {
-            throw new UnidentifiedCallerException(
-                    "This build has no login yet, so it needs the development header "
-                            + header + ". Task 4 replaces it with a JWT.");
+    /**
+     * The caller's role.
+     *
+     * <p>Endpoints do not use this to decide whether to allow something —
+     * that is {@code @PreAuthorize}'s job, so the rule sits next to the method
+     * it guards. This is for the places that need to <em>describe</em> the
+     * caller rather than gate them.
+     */
+    public Role role() {
+        String role = jwt().getClaimAsString(JwtService.ROLE_CLAIM);
+        if (role == null) {
+            throw new UnidentifiedCallerException("This token carries no role.");
         }
-        try {
-            return Long.valueOf(value.trim());
-        } catch (NumberFormatException notANumber) {
-            throw new UnidentifiedCallerException(header + " must be a number.");
+        return Role.valueOf(role);
+    }
+
+    private Jwt jwt() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof Jwt jwt)) {
+            // Reached only if an endpoint that does not require authentication
+            // asks who the caller is. Better to say so than to guess.
+            throw new UnidentifiedCallerException("This request is not authenticated.");
         }
+        return jwt;
     }
 }

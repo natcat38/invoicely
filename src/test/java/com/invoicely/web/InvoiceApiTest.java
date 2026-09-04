@@ -1,5 +1,6 @@
 package com.invoicely.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -7,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.invoicely.TestTokens;
 import com.invoicely.TestcontainersConfiguration;
 import com.invoicely.domain.Business;
 import com.invoicely.domain.BusinessRepository;
@@ -18,6 +20,7 @@ import com.invoicely.domain.InvoiceStatus;
 import com.invoicely.domain.Role;
 import com.invoicely.domain.User;
 import com.invoicely.domain.UserRepository;
+import com.invoicely.security.JwtService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -37,10 +40,11 @@ import org.springframework.transaction.annotation.Transactional;
  * The invoice endpoints, end to end: real HTTP handling, real PostgreSQL, real
  * Flyway schema.
  *
- * <p>Requests carry {@code X-Business-Id} and {@code X-User-Id} because this
- * slice runs behind the permit-all security stub; {@link CurrentRequest} reads
- * them today and will read JWT claims from Task 4 without any of these tests
- * changing shape.
+ * <p>Requests carry a real {@code Authorization: Bearer} token, signed by the
+ * application's own {@link JwtService} via {@link TestTokens#bearer}, because
+ * Task 4 replaced the permit-all security stub with real authentication.
+ * {@link CurrentRequest} reads the {@code sub}/{@code biz}/{@code role} claims
+ * off that token instead of the old development headers.
  *
  * <p>Request bodies are written as JSON text blocks rather than built from
  * objects. It is a little more typing, but the test then asserts against the
@@ -67,6 +71,9 @@ class InvoiceApiTest {
 
     @Autowired
     private InvoiceRepository invoices;
+
+    @Autowired
+    private JwtService jwtService;
 
     private Business acme;
     private User acmeOwner;
@@ -116,8 +123,7 @@ class InvoiceApiTest {
         Client otherClient = clients.save(new Client(other, "Their Client"));
 
         mockMvc.perform(post("/invoices")
-                        .header("X-Business-Id", other.getId())
-                        .header("X-User-Id", otherOwner.getId())
+                        .headers(TestTokens.bearer(jwtService, otherOwner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(oneLineBody(otherClient.getId())))
                 .andExpect(status().isCreated())
@@ -170,9 +176,7 @@ class InvoiceApiTest {
         Business other = businesses.save(new Business("Other Contractors"));
         User otherOwner = users.save(new User(other, "Ben Owner", uniqueEmail(), "hash", Role.OWNER));
 
-        HttpHeaders otherHeaders = new HttpHeaders();
-        otherHeaders.add("X-Business-Id", other.getId().toString());
-        otherHeaders.add("X-User-Id", otherOwner.getId().toString());
+        HttpHeaders otherHeaders = TestTokens.bearer(jwtService, otherOwner);
 
         mockMvc.perform(get("/invoices/" + invoice.getId()).headers(otherHeaders))
                 .andExpect(status().isNotFound())
@@ -186,20 +190,31 @@ class InvoiceApiTest {
     }
 
     @Test
-    @DisplayName("an invoice cannot be attributed to a user from another business")
+    @DisplayName("an invoice created by a token always records that token's own user as created_by")
     void createdByMustBelongToTheSameBusiness() throws Exception {
-        Business other = businesses.save(new Business("Other Contractors"));
-        User outsider = users.save(new User(other, "Ben Owner", uniqueEmail(), "hash", Role.OWNER));
-
-        // A caller in Acme naming a user who belongs to somebody else. The
-        // audit trail is the point: created_by must never cross the boundary,
-        // even though it is attribution rather than access control (ADR-0001).
-        mockMvc.perform(post("/invoices")
-                        .header("X-Business-Id", acme.getId())
-                        .header("X-User-Id", outsider.getId())
+        // Before Task 4, X-Business-Id and X-User-Id were sent as separate
+        // headers, so a caller in Acme could name a user from another
+        // business as created_by; InvoiceService's
+        // UserRepository.findByIdAndBusinessId lookup guarded against that
+        // by 404ing. With bearer tokens, sub (the user) and biz (the
+        // business) both come from one signed token, so that mismatched
+        // combination can no longer be expressed over HTTP at all. What is
+        // still true, and still worth proving, is that created_by is always
+        // the caller's own id from the token — never something the request
+        // body could influence — so the guard's lookup is exercised here
+        // with a same-business identity instead.
+        String location = mockMvc.perform(post("/invoices")
+                        .headers(TestTokens.bearer(jwtService, acmeOwner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(oneLineBody(acmeClient.getId())))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getHeader("Location");
+
+        Long invoiceId = Long.valueOf(location.substring(location.lastIndexOf('/') + 1));
+        Invoice saved = invoices.findById(invoiceId).orElseThrow();
+        assertThat(saved.getCreatedBy().getId()).isEqualTo(acmeOwner.getId());
     }
 
     @Test
@@ -272,11 +287,16 @@ class InvoiceApiTest {
     }
 
     @Test
-    @DisplayName("a request with no caller identity is rejected rather than guessed at")
+    @DisplayName("a request with no bearer token is rejected by the security filter chain")
     void requestsWithoutIdentityAreRejected() throws Exception {
+        // Before Task 4 this reached CurrentRequest and came back as a
+        // Problem Detail with type /problems/unidentified-caller. Now Spring
+        // Security's filter chain rejects the request before the
+        // application code — including GlobalExceptionHandler — ever runs,
+        // so only the 401 status is guaranteed; the body is whatever Spring
+        // Security's default entry point writes, not our Problem Detail.
         mockMvc.perform(get("/invoices"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.type").value("/problems/unidentified-caller"));
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -315,10 +335,7 @@ class InvoiceApiTest {
     }
 
     private HttpHeaders acmeHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("X-Business-Id", acme.getId().toString());
-        headers.add("X-User-Id", acmeOwner.getId().toString());
-        return headers;
+        return TestTokens.bearer(jwtService, acmeOwner);
     }
 
     /** Emails are globally unique, so every seeded user needs its own. */
