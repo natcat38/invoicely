@@ -8,5 +8,10 @@ directory.
 | --------- | ------- |
 | `docs` | Scope docs (product, tech, design direction), build-source list, and `docs/adr/` decision records. |
 | `knowledge` | OKF knowledge bundle: domain concepts (invoice lifecycle, money rules) validated against the house standard. |
-| `.github/workflows` | CI: OKF bundle validation; the Maven build workflow is added with the project skeleton (Task 1). |
+| `src` | Spring Boot application (`src/main/java`), config and Flyway migrations (`src/main/resources/db/migration`), tests (`src/test/java`). |
+| `.github/workflows` | CI: `okf.yml` validates the knowledge bundle, `ci.yml` runs `./mvnw verify` (Testcontainers Postgres). |
 | `.githooks` | Pre-commit hook that runs the OKF validator locally (`git config core.hooksPath .githooks`). |
+
+Top-level build files: `pom.xml` (Maven, Spring Boot 4.1), `mvnw`/`mvnw.cmd` +
+`.mvn/` (Maven wrapper — no local Maven install needed), `compose.yaml`
+(PostgreSQL 16 for local development).
