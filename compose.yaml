@@ -1,3 +1,6 @@
+# Local development only. The credentials below are deliberately throwaway and
+# this file is never used to run anything real — deployments get their database
+# from SPRING_DATASOURCE_* environment variables and a secret store.
 services:
   postgres:
     image: postgres:16
