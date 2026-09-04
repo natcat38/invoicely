@@ -67,10 +67,11 @@ ADR the choice).
 ## 3. Data Model (V1 migration)
 
 ```
-businesses (id, name, gst_registered bool, gst_rate NUMERIC(5,4),
-            default_payment_terms_days int, created_at)
-users      (id, business_id FK, email UNIQUE, password_hash,
-            role 'OWNER'|'STAFF', must_change_password bool, active bool, created_at)
+businesses (id, name, gst_registered bool, gst_rate NUMERIC(5,4) default 0.0900,
+            default_payment_terms_days int default 30, created_at)
+users      (id, business_id FK, name, email UNIQUE (case-insensitive),
+            password_hash, role 'OWNER'|'STAFF', must_change_password bool,
+            active bool, created_at)
 clients    (id, business_id FK, name, contact_person, email, phone, address,
             uen, payment_notes text, archived bool)
 invoices   (id, business_id FK, client_id FK, created_by FK->users,

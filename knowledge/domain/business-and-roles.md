@@ -29,5 +29,6 @@ request, not just at next login.
 
 # Citations
 
-`docs/Invoice_Product_Scope.md` §3 · `docs/Invoice_Tech_Scope.md` Task 4.
+`docs/Invoice_Product_Scope.md` §3 · `docs/Invoice_Tech_Scope.md` Task 4 ·
+`docs/adr/0001-business-as-ownership-boundary.md` (why cross-business is 404).
 Transitions gated by role: [Invoice lifecycle](/domain/invoice-lifecycle.md).
