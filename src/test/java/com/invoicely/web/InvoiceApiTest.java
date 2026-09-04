@@ -186,6 +186,23 @@ class InvoiceApiTest {
     }
 
     @Test
+    @DisplayName("an invoice cannot be attributed to a user from another business")
+    void createdByMustBelongToTheSameBusiness() throws Exception {
+        Business other = businesses.save(new Business("Other Contractors"));
+        User outsider = users.save(new User(other, "Ben Owner", uniqueEmail(), "hash", Role.OWNER));
+
+        // A caller in Acme naming a user who belongs to somebody else. The
+        // audit trail is the point: created_by must never cross the boundary,
+        // even though it is attribution rather than access control (ADR-0001).
+        mockMvc.perform(post("/invoices")
+                        .header("X-Business-Id", acme.getId())
+                        .header("X-User-Id", outsider.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(oneLineBody(acmeClient.getId())))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     @DisplayName("a sent invoice cannot be edited or deleted")
     void onlyDraftsAreEditable() throws Exception {
         Invoice sent = statusOf(createInvoice(acme, acmeOwner, acmeClient, "INV-2026-0001"), InvoiceStatus.SENT);

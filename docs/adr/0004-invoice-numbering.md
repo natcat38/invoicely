@@ -61,6 +61,13 @@ String number = numbering.next(businessId, issueDate);          // max + 1
   wider number would sort *before* every four-digit one and quietly break the
   `max(number)` lookup this design rests on. Widening the format means
   backfilling the existing numbers too.
+- **The design depends on READ COMMITTED**, PostgreSQL's default. Once the
+  second transaction acquires the business lock, its next statement takes a
+  fresh snapshot and sees the invoice the first one committed. Under REPEATABLE
+  READ it would keep reading its original snapshot, miss that invoice, and
+  allocate a number that already exists — caught by the unique constraint, but
+  as an intermittent 500. Do not raise the isolation level without replacing
+  this with a counter row.
 - Numbers can have gaps. A create that fails after allocating still consumes
   nothing, but a deleted draft leaves its number unused, and the sequence does
   not reclaim it. That is normal for invoice numbering and is the safer

@@ -38,15 +38,15 @@ public record InvoiceTotals(
     private static final int MONEY_SCALE = 2;
 
     public static InvoiceTotals of(Invoice invoice) {
-        BigDecimal subtotal = round(invoice.getLineItems().stream()
+        BigDecimal subtotal = roundMoney(invoice.getLineItems().stream()
                 .map(LineItem::lineTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
 
         BigDecimal rate = applicableGstRate(invoice);
-        BigDecimal gst = rate == null ? BigDecimal.ZERO : round(subtotal.multiply(rate));
+        BigDecimal gst = rate == null ? BigDecimal.ZERO : roundMoney(subtotal.multiply(rate));
         BigDecimal total = subtotal.add(gst);
 
-        BigDecimal paid = round(invoice.getPayments().stream()
+        BigDecimal paid = roundMoney(invoice.getPayments().stream()
                 .map(Payment::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
 
@@ -69,7 +69,11 @@ public record InvoiceTotals(
         return business.isGstRegistered() ? business.getGstRate() : null;
     }
 
-    private static BigDecimal round(BigDecimal amount) {
+    /**
+     * The rounding rule for every amount this API reports, in one place so that
+     * a line total and the subtotal it feeds can never round differently.
+     */
+    public static BigDecimal roundMoney(BigDecimal amount) {
         return amount.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 

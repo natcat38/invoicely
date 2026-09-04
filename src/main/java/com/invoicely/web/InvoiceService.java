@@ -72,7 +72,7 @@ public class InvoiceService {
         Business business = businesses.findByIdForUpdate(businessId)
                 .orElseThrow(() -> new NotFoundException("Business"));
         Client client = requireClient(request.clientId(), businessId);
-        User createdBy = users.findById(currentRequest.userId())
+        User createdBy = users.findByIdAndBusinessId(currentRequest.userId(), businessId)
                 .orElseThrow(() -> new NotFoundException("User"));
 
         LocalDate issueDate = request.issueDate() == null ? LocalDate.now() : request.issueDate();

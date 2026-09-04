@@ -82,7 +82,7 @@ public record InvoiceResponse(
                     item.getDescription(),
                     item.getQuantity(),
                     item.getUnitPrice(),
-                    item.lineTotal().setScale(2, java.math.RoundingMode.HALF_UP));
+                    InvoiceTotals.roundMoney(item.lineTotal()));
         }
     }
 }

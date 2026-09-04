@@ -14,6 +14,14 @@ import org.springframework.stereotype.Component;
  * relies on the caller holding the per-business lock — see
  * {@link BusinessRepository#findByIdForUpdate} and
  * docs/adr/0004-invoice-numbering.md.
+ *
+ * <p><b>This depends on PostgreSQL's default READ COMMITTED isolation.</b> A
+ * second create blocks on the business lock, and once it acquires it, its next
+ * statement takes a fresh snapshot and therefore sees the invoice the first one
+ * just committed. Raising the isolation level to REPEATABLE READ would break
+ * that: the query below would still read the pre-lock snapshot, miss the new
+ * invoice, and hand out a number that already exists. The unique constraint
+ * would catch it, but as an intermittent failure rather than a correct answer.
  */
 @Component
 public class InvoiceNumbering {
