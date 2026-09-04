@@ -17,6 +17,7 @@ public record ChangePasswordRequest(
         String currentPassword,
 
         @NotBlank(message = "Enter a new password.")
-        @Size(min = 8, message = "Passwords need at least 8 characters.")
+        @Size(min = 8, max = AuthService.MAX_PASSWORD_BYTES,
+                message = "Passwords must be between 8 and 72 characters.")
         String newPassword) {
 }

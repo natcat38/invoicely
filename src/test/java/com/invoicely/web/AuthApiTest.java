@@ -256,4 +256,23 @@ class AuthApiTest {
     private String uniqueEmail() {
         return "user-" + UUID.randomUUID() + "@example.test";
     }
+
+    @Test
+    @DisplayName("a passphrase longer than BCrypt can hash is a 400, not a 500")
+    void overlongPasswordsAreRejectedCleanly() throws Exception {
+        // BCrypt hashes at most 72 bytes and throws above that, so without a
+        // cap this reasonable-looking passphrase would come back as a 500.
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "businessName": "Long Password Co",
+                                  "ownerName": "Ada Owner",
+                                  "email": "long@example.test",
+                                  "password": "%s"
+                                }
+                                """.formatted("x".repeat(100))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[?(@.field == 'password')]").exists());
+    }
 }

@@ -43,6 +43,7 @@ public record RegisterRequest(
         // (no forced digit/symbol) — those are known to push people toward
         // weaker, more predictable passwords, not stronger ones.
         @NotBlank(message = "Enter a password.")
-        @Size(min = 8, message = "Passwords need at least 8 characters.")
+        @Size(min = 8, max = AuthService.MAX_PASSWORD_BYTES,
+                message = "Passwords must be between 8 and 72 characters.")
         String password) {
 }

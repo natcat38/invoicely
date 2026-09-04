@@ -1,6 +1,7 @@
 package com.invoicely.web;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -54,7 +55,15 @@ class TeamController {
         return teamService.setActive(id, request.active());
     }
 
-    /** The one field a PATCH may change: whether the account can sign in. */
-    record UpdateActiveRequest(boolean active) {
+    /**
+     * The one field a PATCH may change: whether the account can sign in.
+     *
+     * <p>Boxed and {@code @NotNull} rather than a primitive: a primitive would
+     * default a missing or misspelled field to {@code false}, so a malformed
+     * request would quietly deactivate someone instead of being rejected.
+     */
+    record UpdateActiveRequest(
+            @NotNull(message = "Say whether the account should be active.")
+            Boolean active) {
     }
 }

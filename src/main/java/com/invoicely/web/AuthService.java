@@ -6,6 +6,7 @@ import com.invoicely.domain.Role;
 import com.invoicely.domain.User;
 import com.invoicely.domain.UserRepository;
 import com.invoicely.security.JwtService;
+import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class AuthService {
+
+    /**
+     * BCrypt hashes at most 72 bytes and throws outright above that, so an
+     * uncapped password would answer a perfectly reasonable long passphrase
+     * with a 500. The request records cap the character count, which catches
+     * every ordinary case with a proper field-level 400; {@link #hash} then
+     * checks the byte count, because a password of accented or emoji
+     * characters can be under 72 characters and still over 72 bytes.
+     */
+    public static final int MAX_PASSWORD_BYTES = 72;
 
     private final UserRepository users;
     private final BusinessRepository businesses;
@@ -67,7 +78,7 @@ public class AuthService {
         Business business = businesses.save(new Business(request.businessName()));
 
         User owner = new User(business, request.ownerName(), request.email(),
-                passwordEncoder.encode(request.password()), Role.OWNER);
+                hash(request.password()), Role.OWNER);
         // An owner chose their own password just now, so there is nothing to
         // force a change on — unlike the temporary password Task 4's /team
         // endpoint generates for a new staff member.
@@ -112,12 +123,24 @@ public class AuthService {
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw invalidCredentials();
         }
-        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setPasswordHash(hash(request.newPassword()));
         user.setMustChangePassword(false);
         // No save() call: user is managed inside this transaction, so
         // Hibernate writes the changes back at commit (same as ClientService.update).
 
         return AuthResponse.of(user, jwtService.issue(user));
+    }
+
+    /**
+     * Hashes a password, rejecting anything BCrypt cannot represent before it
+     * throws. See {@link #MAX_PASSWORD_BYTES}.
+     */
+    private String hash(String password) {
+        if (password.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+            throw new BadRequestException("password-too-long",
+                    "That password is too long. Try one under 72 characters.");
+        }
+        return passwordEncoder.encode(password);
     }
 
     /**

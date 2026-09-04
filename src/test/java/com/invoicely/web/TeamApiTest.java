@@ -234,4 +234,18 @@ class TeamApiTest {
         int end = responseBody.indexOf('"', start);
         return responseBody.substring(start, end);
     }
+
+    @Test
+    @DisplayName("a PATCH with no active field is rejected rather than deactivating someone")
+    void patchWithoutActiveFieldIsRejected() throws Exception {
+        mockMvc.perform(patch("/team/" + staff.getId())
+                        .headers(ownerAuth())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        assertThat(users.findById(staff.getId()).orElseThrow().isActive())
+                .as("a malformed request must not have deactivated anybody")
+                .isTrue();
+    }
 }
