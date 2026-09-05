@@ -20,12 +20,12 @@ roles, the full lifecycle and payments, tests, CI) followed by a full-repo
 audit and hardening pass whose reports are kept in
 [`reports/phase1-audit/`](reports/phase1-audit/).
 
-**Phase 2 (the React UI) is in progress.** The API side of it is done —
-CORS, `GET /auth/me` for session restore, login throttling, token
-invalidation on password change, and the data the invoice document needs to
-render (letterhead, bill-to, `amountPaid`). Nothing in this repo renders a
-screen yet; until it does, the API is used through
-[Swagger UI](#api-tour) or a plain HTTP client.
+**Phase 2 (the React UI) is in progress.** The foundation is in `web/`:
+Vite + TypeScript + Tailwind 4 + shadcn/ui, the Design Direction's tokens,
+registration and sign-in, the forced password-change interstitial, session
+restore, and role-aware routing. The screens themselves — clients, the
+invoice list, the builder with its live document preview, the dashboard —
+are Tasks 8 and 9, and their routes currently render a placeholder saying so.
 
 ## Stack
 
@@ -56,6 +56,31 @@ To run the tests instead (spins up its own throwaway Postgres, no
 ```powershell
 .\mvnw verify
 ```
+
+### The UI
+
+Needs Node 20+. In a second terminal, with the API already running:
+
+```powershell
+cd web
+npm install
+npm run dev
+```
+
+That serves the app on `http://localhost:5173`, which is the origin the API
+allows by default. Point it somewhere else by setting `VITE_API_BASE_URL`
+(see `web/.env.example`) — and add that origin to
+`invoicely.security.allowed-origins` on the API, or the browser will block
+every call.
+
+`npm run build` typechecks and bundles; `npm run lint` runs oxlint. CI runs
+both.
+
+> **Migrations note.** If the app fails to start with a Flyway *checksum
+> mismatch for version 1*, your local database predates the real schema
+> (`V1` was still a placeholder until Task 2). Local Postgres is disposable,
+> so the fix is to let Flyway start over:
+> `docker compose exec postgres psql -U invoicely -d invoicely -c "drop table flyway_schema_history;"`
 
 ## API tour
 
