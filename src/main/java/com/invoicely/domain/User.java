@@ -45,6 +45,21 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    /**
+     * When this user's password was last changed, used to reject access
+     * tokens issued before that moment
+     * (docs/adr/0010-session-invalidation-and-login-throttling.md).
+     *
+     * <p>Null means "never changed since the account was created" — every
+     * existing account and every freshly registered one starts this way, and
+     * stays this way until its first password change, so no token can predate
+     * a change that never happened. Only
+     * {@code AuthService.changePassword} ever writes this field, and nothing
+     * ever clears it back to null.
+     */
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
+
     /** Stored as text ('OWNER'/'STAFF'), not an ordinal: ordinals break the
      *  moment someone reorders the enum. */
     @Enumerated(EnumType.STRING)
@@ -100,6 +115,14 @@ public class User {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public Instant getPasswordChangedAt() {
+        return passwordChangedAt;
+    }
+
+    public void setPasswordChangedAt(Instant passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
     }
 
     public Role getRole() {

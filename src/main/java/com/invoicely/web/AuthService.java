@@ -7,6 +7,7 @@ import com.invoicely.domain.User;
 import com.invoicely.domain.UserRepository;
 import com.invoicely.security.JwtService;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -131,6 +132,17 @@ public class AuthService {
      * also how a staff member on a temporary password earns access to
      * everything else — {@code AccountStateFilter} lets this one path through
      * for them and nothing else.
+     *
+     * <p>Also stamps {@code passwordChangedAt}, which is what makes this the
+     * one action that invalidates every other token this user holds
+     * (docs/adr/0010-session-invalidation-and-login-throttling.md).
+     * {@code AccountStateFilter} rejects any token whose {@code iat} is
+     * strictly before that stamp — and the fresh token issued below, minted
+     * after the stamp is written, can never be strictly before it. That is
+     * exactly why calling this endpoint does not log the caller out of the
+     * session they called it from: they walk away with a token that is still
+     * good, while every other copy of their old token stops working on its
+     * next request.
      */
     public AuthResponse changePassword(ChangePasswordRequest request) {
         User user = users.findByIdAndBusinessId(currentRequest.userId(), currentRequest.businessId())
@@ -141,10 +153,26 @@ public class AuthService {
         }
         user.setPasswordHash(hash(request.newPassword()));
         user.setMustChangePassword(false);
+        user.setPasswordChangedAt(Instant.now());
         // No save() call: user is managed inside this transaction, so
         // Hibernate writes the changes back at commit (same as ClientService.update).
 
         return AuthResponse.of(user, jwtService.issue(user));
+    }
+
+    /**
+     * Re-identifies the caller from their token alone, with no password
+     * involved — the UI's answer to "who is this?" after a page reload, when
+     * all it still has is the token from storage.
+     *
+     * <p>Read-only, and deliberately does not issue a fresh token: see
+     * {@link MeResponse} for why a token never comes back from this endpoint.
+     */
+    @Transactional(readOnly = true)
+    public MeResponse me() {
+        User user = users.findByIdAndBusinessId(currentRequest.userId(), currentRequest.businessId())
+                .orElseThrow(() -> new NotFoundException("User"));
+        return MeResponse.of(user);
     }
 
     /**

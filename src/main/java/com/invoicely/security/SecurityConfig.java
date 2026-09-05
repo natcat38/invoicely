@@ -6,12 +6,15 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,6 +30,10 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.CorsUtils;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * The real security configuration, replacing the permit-all stub Task 3 ran
@@ -54,15 +61,27 @@ public class SecurityConfig {
     private static final int KEY_BITS = 256;
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, AccountStateFilter accountStateFilter)
-            throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, AccountStateFilter accountStateFilter,
+            LoginThrottleFilter loginThrottleFilter) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
+                // Phase 2's React app is served from a different origin than
+                // this API, so the browser needs CORS's permission before it
+                // will let that app's JavaScript read a response. See
+                // corsConfigurationSource() below for the allow-list and why
+                // credentials stay off.
+                .cors(Customizer.withDefaults())
                 // Nothing is kept between requests: the token carries the whole
                 // of the caller's identity, so there is no session to create.
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(requests -> requests
+                        // A browser sends its own OPTIONS preflight ahead of the
+                        // real cross-origin request, with no Authorization header
+                        // at all — it is the browser asking permission, not the
+                        // caller asking for data — so it can never be made to
+                        // carry a token.
+                        .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
                         // Registering and logging in are how a caller obtains a
                         // token, so they cannot require one.
                         .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
@@ -77,11 +96,51 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 ->
                         oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter())))
+                // Before BasicAuthenticationFilter, i.e. before authentication
+                // does any work at all: this filter guards two endpoints that
+                // are permitAll precisely because they hand out the token
+                // everything else needs, so there is nothing to authenticate
+                // yet and no reason to wait until after that step to say no.
+                .addFilterBefore(loginThrottleFilter, BasicAuthenticationFilter.class)
                 // After authentication, before anything acts on it: the token
                 // has been verified by now, so the user id in it can be trusted
                 // enough to look the account up.
                 .addFilterAfter(accountStateFilter, BasicAuthenticationFilter.class)
                 .build();
+    }
+
+    /**
+     * The CORS allow-list Phase 2's browser client needs, read from
+     * {@link SecurityProperties} so each environment can name its own origin
+     * without a code change.
+     *
+     * <p>{@code allowCredentials} is left at its default of {@code false}, on
+     * purpose. ADR-0002 puts the access token in an {@code Authorization}
+     * header, never a cookie, so no request this API serves needs the browser
+     * to send credentials — and enabling {@code allowCredentials} alongside a
+     * wide-open origin list is the one CORS misconfiguration that is actually
+     * dangerous, because it lets every listed origin act using a visitor's
+     * cookies. Leaving it off closes that off entirely, regardless of how long
+     * {@code allowedOrigins} ever grows.
+     */
+    @Bean
+    CorsConfigurationSource corsConfigurationSource(SecurityProperties properties) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(properties.allowedOrigins());
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        // Every request header is allowed; nothing here needs restricting
+        // beyond the origin check above.
+        configuration.setAllowedHeaders(List.of("*"));
+        // A browser hides every response header from cross-origin JavaScript
+        // except a short safelist, and Retry-After is not on it. Without this
+        // line LoginThrottleFilter's 429 would still arrive, but the UI could
+        // not read how long to wait and would have to guess — so the one
+        // header this API sets that a client genuinely needs is named here.
+        configuration.setExposedHeaders(List.of(HttpHeaders.RETRY_AFTER));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     /**

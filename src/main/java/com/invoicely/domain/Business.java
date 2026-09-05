@@ -43,6 +43,22 @@ public class Business {
     private int defaultPaymentTermsDays = 30;
 
     /**
+     * Printed on the invoice document's letterhead — the "from" block — and
+     * nothing else. Nullable because an existing business has neither this nor
+     * {@link #uen} set, and an invoice for such a business is still valid, just
+     * a thinner letterhead. See {@code docs/adr/0011-invoice-document-data-contract.md}.
+     */
+    private String address;
+
+    /**
+     * Singapore Unique Entity Number, printed on the letterhead. Read live from
+     * this row on every invoice, never snapshotted — see the ADR referenced on
+     * {@link #address} for why an address or UEN behaves differently from
+     * {@code gst_rate_snapshot}.
+     */
+    private String uen;
+
+    /**
      * Set once, when the object is first constructed. Hibernate overwrites it
      * with the stored value when loading an existing row, so this initialiser
      * only ever applies to genuinely new businesses.
@@ -92,6 +108,22 @@ public class Business {
 
     public void setDefaultPaymentTermsDays(int defaultPaymentTermsDays) {
         this.defaultPaymentTermsDays = defaultPaymentTermsDays;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getUen() {
+        return uen;
+    }
+
+    public void setUen(String uen) {
+        this.uen = uen;
     }
 
     public Instant getCreatedAt() {

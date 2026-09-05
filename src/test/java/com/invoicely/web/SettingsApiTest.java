@@ -164,6 +164,61 @@ class SettingsApiTest {
                 .andExpect(jsonPath("$.errors[?(@.field == 'gstRate')]").exists());
     }
 
+    @Test
+    @DisplayName("the owner can set the invoice letterhead's address and UEN, and read them back")
+    void addressAndUenRoundTripThroughSettings() throws Exception {
+        mockMvc.perform(put("/settings").headers(as(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(settingsWithLetterhead("Acme Renovations", false, "0.09", 30,
+                                "1 Renovation Row, Singapore 654321", "201234567A")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.address").value("1 Renovation Row, Singapore 654321"))
+                .andExpect(jsonPath("$.uen").value("201234567A"));
+
+        // Reading it back separately proves the values were actually persisted,
+        // not just echoed straight from the request body.
+        mockMvc.perform(get("/settings").headers(as(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.address").value("1 Renovation Row, Singapore 654321"))
+                .andExpect(jsonPath("$.uen").value("201234567A"));
+    }
+
+    @Test
+    @DisplayName("omitting the address and UEN is accepted, not a 400, and leaves them null")
+    void omittingTheLetterheadFieldsIsAcceptedAndLeavesThemNull() throws Exception {
+        // `settings(...)` sends a body with no address/uen fields at all, unlike
+        // gstRegistered/gstRate/defaultPaymentTermsDays which are required. A
+        // business may legitimately never fill in a letterhead.
+        mockMvc.perform(put("/settings").headers(as(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(settings("Acme Renovations", false, "0.09", 30)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.address").doesNotExist())
+                .andExpect(jsonPath("$.uen").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("an address over 500 characters is refused")
+    void anOverlongAddressIsRejected() throws Exception {
+        mockMvc.perform(put("/settings").headers(as(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(settingsWithLetterhead(
+                                "Acme Renovations", false, "0.09", 30, "A".repeat(501), null)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[?(@.field == 'address')]").exists());
+    }
+
+    @Test
+    @DisplayName("a UEN over 20 characters is refused")
+    void anOverlongUenIsRejected() throws Exception {
+        mockMvc.perform(put("/settings").headers(as(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(settingsWithLetterhead(
+                                "Acme Renovations", false, "0.09", 30, null, "1".repeat(21))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[?(@.field == 'uen')]").exists());
+    }
+
     private String settings(String name, boolean gstRegistered, String rate, int terms) {
         return """
                 {
@@ -173,6 +228,25 @@ class SettingsApiTest {
                   "defaultPaymentTermsDays": %d
                 }
                 """.formatted(name, gstRegistered, rate, terms);
+    }
+
+    private String settingsWithLetterhead(
+            String name, boolean gstRegistered, String rate, int terms, String address, String uen) {
+        return """
+                {
+                  "name": "%s",
+                  "gstRegistered": %s,
+                  "gstRate": %s,
+                  "defaultPaymentTermsDays": %d,
+                  "address": %s,
+                  "uen": %s
+                }
+                """.formatted(name, gstRegistered, rate, terms, asJsonString(address), asJsonString(uen));
+    }
+
+    /** Renders a possibly-null Java string as a JSON string literal or bare {@code null}. */
+    private String asJsonString(String value) {
+        return value == null ? "null" : "\"" + value + "\"";
     }
 
     private HttpHeaders as(User user) {

@@ -70,21 +70,35 @@ decisions" section.
 
 ## Wave 4 — after wave 3 merges cleanly
 - [x] OpenAPI per-endpoint annotations on all controllers (docs-audit.md).
-- [ ] Verification gate: full build + test run.
+- [x] Verification gate: full build + test run. Green; merged as PR #9.
 
-## OWNER-DECISION — not applied, needs Natalie's call
-1. Rate limiting / lockout on `/auth/login` + `/auth/register` (new 429/lockout
-   behaviour, thresholds to pick). security-review.md medium.
-2. Invalidate JWTs issued before a password change (`iat` vs credentials-changed
-   check — logs out all sessions on password change). security-review.md medium.
-3. Deactivated accounts get 401 today; 403 is arguable. security-audit-raw.md minor.
-4. Invoice "paper document" contract for Phase 2: client bill-to address in
-   `InvoiceResponse`, business address/UEN (needs V2 migration), `amountPaid`
-   visible to staff. architecture-review.md, OWNER-DECISION items.
+## OWNER-DECISION — answered 2026-09-06, all four built in Task 7a
+1. [x] Rate limiting / lockout on `/auth/login` + `/auth/register`.
+   → **Simple in-memory per-IP throttle**: 10 failures per IP per 15 minutes,
+   then 429 with `Retry-After`. Per instance, lost on restart — stated as a
+   known limit, not hidden. ADR-0010.
+2. [x] Invalidate JWTs issued before a password change.
+   → **Yes**: `users.password_changed_at` (V2) vs the token's `iat`, checked in
+   `AccountStateFilter` → 401 `token-superseded`. Note it does *not* log the
+   caller out of the session they are in — `change-password` already returns a
+   fresh token stamped after the change, so Phase 2's forced-change
+   interstitial needs no re-login screen. ADR-0010.
+3. [x] Deactivated accounts get 401 today; 403 is arguable.
+   → **403** `account-deactivated`. The UI keys on the problem `type` to know
+   this particular 403 must clear the token. ADR-0010.
+4. [x] Invoice "paper document" contract for Phase 2.
+   → **Full document**: `businesses.address` + `uen` (V2) editable in Settings,
+   client bill-to fields and a business letterhead block on `InvoiceResponse`,
+   `amountPaid` exposed and visible to staff. Rendered **live**, not
+   snapshotted — `gst_rate_snapshot` stays the only frozen field, and ADR-0011
+   records why that asymmetry is deliberate.
 
 ## Deferred to Phase 2 start (technical, belongs in Phase 2 slice 1)
-- CORS configuration (no frontend origin exists yet).
-- `GET /auth/me` endpoint for session restore.
+- [x] CORS configuration — explicit allow-list from
+  `invoicely.security.allowed-origins`, defaulting to Vite's
+  `http://localhost:5173`; no `allowCredentials`, since ADR-0002 puts the token
+  in a header rather than a cookie. Built in Task 7a.
+- [x] `GET /auth/me` endpoint for session restore. Built in Task 7a.
 - Noted, not fixed (below-the-line per architecture review): `Invoice.setStatus`
   bypasses `canTransitionTo`; overdue predicate duplicated 6×; web-test fixture
   duplication.
