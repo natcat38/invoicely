@@ -38,6 +38,18 @@ public class AuthService {
      */
     public static final int MAX_PASSWORD_BYTES = 72;
 
+    /**
+     * A BCrypt hash of no real password, used only to pay BCrypt's
+     * verification cost when a login's email does not resolve to an active
+     * user. See {@link #login} — without this, an unknown/inactive email
+     * would return immediately while a known one always pays tens of
+     * milliseconds of BCrypt cost, a timing side channel an attacker can use
+     * to enumerate registered emails even though both cases answer with the
+     * identical 401 body (security-review.md, L2).
+     */
+    private static final String DUMMY_HASH =
+            "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5L5zvNYqOEHwRvCQnMqQ2rSHzDzZO";
+
     private final UserRepository users;
     private final BusinessRepository businesses;
     private final PasswordEncoder passwordEncoder;
@@ -100,13 +112,17 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        User user = users.findByEmailIgnoreCase(request.email())
-                .filter(User::isActive)
-                .orElseThrow(AuthService::invalidCredentials);
+        var found = users.findByEmailIgnoreCase(request.email()).filter(User::isActive);
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw invalidCredentials();
-        }
+        // Runs even when found is empty, against a fixed dummy hash, so this
+        // branch and the "user exists" branch below always pay the same
+        // BCrypt cost — otherwise response latency alone would tell an
+        // attacker which emails have an active account (security-review.md,
+        // L2), despite both branches already returning the identical 401 body.
+        boolean passwordMatches = passwordEncoder.matches(
+                request.password(), found.map(User::getPasswordHash).orElse(DUMMY_HASH));
+
+        User user = found.filter(candidate -> passwordMatches).orElseThrow(AuthService::invalidCredentials);
         return AuthResponse.of(user, jwtService.issue(user));
     }
 

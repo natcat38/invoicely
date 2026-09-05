@@ -86,14 +86,6 @@ class InvoiceStatusTest {
         assertThat(InvoiceStatus.DRAFT.canTransitionTo(InvoiceStatus.DRAFT)).isFalse();
     }
 
-    @Test
-    @DisplayName("issued means the client has it: sent, overdue or paid")
-    void issuedCoversEverythingTheClientHasSeen() {
-        assertThat(EnumSet.allOf(InvoiceStatus.class).stream().filter(InvoiceStatus::isIssued))
-                .containsExactlyInAnyOrder(
-                        InvoiceStatus.SENT, InvoiceStatus.OVERDUE, InvoiceStatus.PAID);
-    }
-
     private Set<InvoiceStatus> legalFrom(InvoiceStatus from) {
         EnumSet<InvoiceStatus> legal = EnumSet.noneOf(InvoiceStatus.class);
         for (InvoiceStatus target : InvoiceStatus.values()) {

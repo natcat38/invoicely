@@ -1,5 +1,8 @@
 package com.invoicely.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/settings")
+@Tag(name = "Settings", description = "The caller's own business settings: name, GST, payment terms. Owner-only.")
 class SettingsController {
 
     private final SettingsService settingsService;
@@ -25,6 +29,9 @@ class SettingsController {
         this.settingsService = settingsService;
     }
 
+    @Operation(summary = "Get business settings")
+    @ApiResponse(responseCode = "200", description = "Current settings.")
+    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
     @PreAuthorize("hasRole('OWNER')")
     @GetMapping
     SettingsResponse get() {
@@ -32,6 +39,10 @@ class SettingsController {
     }
 
     /** A full replace rather than a patch — the Settings page submits every field. */
+    @Operation(summary = "Replace business settings", description = "Full replace — the Settings page submits every field.")
+    @ApiResponse(responseCode = "200", description = "Settings updated.")
+    @ApiResponse(responseCode = "400", description = "Validation failed, or defaultPaymentTermsDays is not 7, 14 or 30.")
+    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
     @PreAuthorize("hasRole('OWNER')")
     @PutMapping
     SettingsResponse update(@Valid @RequestBody SettingsRequest request) {

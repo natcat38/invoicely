@@ -246,10 +246,6 @@ public class Invoice {
         this.sentAt = sentAt;
     }
 
-    public User getSentBy() {
-        return sentBy;
-    }
-
     public void setSentBy(User sentBy) {
         this.sentBy = sentBy;
     }

@@ -2,6 +2,7 @@ package com.invoicely.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -152,6 +153,77 @@ class AuthApiTest {
                         .content(loginBody(email, "correct-password")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.type").value("/problems/invalid-credentials"));
+    }
+
+    @Test
+    @DisplayName("a token issued before deactivation is rejected on the very next request, not just at a fresh login")
+    void tokenIssuedBeforeDeactivationIsRejectedOnReplay() throws Exception {
+        Business business = businesses.save(new Business("Acme Renovations"));
+        User staff = users.save(new User(business, "Sam Staff", uniqueEmail(),
+                passwordEncoder.encode("correct-password"), Role.STAFF));
+        HttpHeaders bearer = TestTokens.bearer(jwtService, staff);
+
+        // The token is minted while the account is still active — proven by
+        // using it successfully once before deactivating.
+        mockMvc.perform(get("/clients").headers(bearer))
+                .andExpect(status().isOk());
+
+        staff.setActive(false);
+        users.saveAndFlush(staff);
+
+        // Same token, replayed after deactivation. deactivatedUserCannotLogIn
+        // above proves a fresh login is refused, but that is AuthService, a
+        // different code path. This proves the more dangerous one:
+        // AccountStateFilter re-reads isActive() from the database on every
+        // request, so a token minted before the change does not keep working
+        // until it expires.
+        mockMvc.perform(get("/clients").headers(bearer))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type").value("/problems/account-deactivated"));
+    }
+
+    @Test
+    @DisplayName("must-change-password blocks a spread of endpoints, not just the one everyone happens to check")
+    void mustChangePasswordBlocksASpreadOfEndpoints() throws Exception {
+        // mustChangePasswordBlocksEverythingExceptChangePassword only probes
+        // GET /clients. AccountStateFilter's carve-out is implemented
+        // generically (every request except the CHANGE_PASSWORD matcher), but
+        // that generic implementation is exactly what a narrow test would fail
+        // to catch a regression in — e.g. a second carve-out added later for
+        // one specific path. An owner is used (rather than staff) so every
+        // endpoint below is reachable by role, and the only thing that can be
+        // stopping the request is the must-change-password gate.
+        Business business = businesses.save(new Business("Acme Renovations"));
+        User owner = new User(business, "Ada Owner", uniqueEmail(),
+                passwordEncoder.encode("temporary-password"), Role.OWNER);
+        owner.setMustChangePassword(true);
+        owner = users.save(owner);
+        HttpHeaders bearer = TestTokens.bearer(jwtService, owner);
+
+        mockMvc.perform(post("/invoices").headers(bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("/problems/password-change-required"));
+
+        mockMvc.perform(get("/dashboard").headers(bearer))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("/problems/password-change-required"));
+
+        mockMvc.perform(get("/team").headers(bearer))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("/problems/password-change-required"));
+
+        mockMvc.perform(patch("/team/999999").headers(bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"active": false}
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("/problems/password-change-required"));
+
+        mockMvc.perform(post("/invoices/999999/payments").headers(bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("/problems/password-change-required"));
     }
 
     @Test

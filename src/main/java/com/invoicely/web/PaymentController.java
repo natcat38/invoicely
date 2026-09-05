@@ -1,5 +1,8 @@
 package com.invoicely.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/invoices/{invoiceId}/payments")
+@Tag(name = "Payments", description = "Recording money against a sent invoice. Owner-only throughout.")
 class PaymentController {
 
     private final PaymentService paymentService;
@@ -33,6 +37,13 @@ class PaymentController {
         this.paymentService = paymentService;
     }
 
+    @Operation(summary = "Record a payment", description = "A payment that brings the balance to exactly zero "
+            + "flips the invoice to PAID. Owner only.")
+    @ApiResponse(responseCode = "201", description = "Payment recorded.")
+    @ApiResponse(responseCode = "400", description = "Validation failed, or the amount exceeds the remaining balance.")
+    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
+    @ApiResponse(responseCode = "404", description = "No such invoice, or it belongs to another business.")
+    @ApiResponse(responseCode = "409", description = "The invoice has not been sent, or is already fully paid.")
     @PreAuthorize("hasRole('OWNER')")
     @PostMapping
     ResponseEntity<PaymentResponse> record(@PathVariable Long invoiceId,
@@ -43,6 +54,10 @@ class PaymentController {
                 .body(recorded);
     }
 
+    @Operation(summary = "List payments on an invoice", description = "Newest first. Owner only.")
+    @ApiResponse(responseCode = "200", description = "Payments for this invoice.")
+    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
+    @ApiResponse(responseCode = "404", description = "No such invoice, or it belongs to another business.")
     @PreAuthorize("hasRole('OWNER')")
     @GetMapping
     List<PaymentResponse> list(@PathVariable Long invoiceId) {

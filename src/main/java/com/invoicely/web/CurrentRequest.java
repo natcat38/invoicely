@@ -1,6 +1,5 @@
 package com.invoicely.web;
 
-import com.invoicely.domain.Role;
 import com.invoicely.security.JwtService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,22 +41,6 @@ public class CurrentRequest {
         } catch (NumberFormatException notOurToken) {
             throw new UnidentifiedCallerException("This token carries no usable user id.");
         }
-    }
-
-    /**
-     * The caller's role.
-     *
-     * <p>Endpoints do not use this to decide whether to allow something —
-     * that is {@code @PreAuthorize}'s job, so the rule sits next to the method
-     * it guards. This is for the places that need to <em>describe</em> the
-     * caller rather than gate them.
-     */
-    public Role role() {
-        String role = jwt().getClaimAsString(JwtService.ROLE_CLAIM);
-        if (role == null) {
-            throw new UnidentifiedCallerException("This token carries no role.");
-        }
-        return Role.valueOf(role);
     }
 
     private Jwt jwt() {

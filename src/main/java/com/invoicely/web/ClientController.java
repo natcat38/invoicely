@@ -1,5 +1,9 @@
 package com.invoicely.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import org.springframework.data.domain.Page;
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/clients")
+@Tag(name = "Clients", description = "Client CRUD, scoped to the caller's business.")
 class ClientController {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
@@ -32,6 +37,9 @@ class ClientController {
         this.clientService = clientService;
     }
 
+    @Operation(summary = "Create a client")
+    @ApiResponse(responseCode = "201", description = "Client created.")
+    @ApiResponse(responseCode = "400", description = "Validation failed.")
     @PostMapping
     ResponseEntity<ClientResponse> create(@Valid @RequestBody ClientRequest request) {
         ClientResponse created = clientService.create(request);
@@ -49,9 +57,12 @@ class ClientController {
      *
      * @param q optional case-insensitive fragment of the client name
      */
+    @Operation(summary = "List clients", description = "Alphabetical, one archive state at a time.")
     @GetMapping
     Page<ClientResponse> list(
+            @Parameter(description = "false (default) lists active clients, true lists only archived ones.")
             @RequestParam(defaultValue = "false") boolean archived,
+            @Parameter(description = "Optional case-insensitive fragment of the client name.")
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
@@ -60,6 +71,9 @@ class ClientController {
         return clientService.list(archived, q, pageRequest);
     }
 
+    @Operation(summary = "Get a client")
+    @ApiResponse(responseCode = "200", description = "Client found.")
+    @ApiResponse(responseCode = "404", description = "No such client, or it belongs to another business.")
     @GetMapping("/{id}")
     ClientResponse get(@PathVariable Long id) {
         return clientService.get(id);
@@ -69,11 +83,20 @@ class ClientController {
      * Full replace, including {@code archived} — this is also how a client gets
      * archived or restored, since there is no separate endpoint for it.
      */
+    @Operation(summary = "Replace a client", description = "Full replace, including archived — this is also how a "
+            + "client is archived or restored.")
+    @ApiResponse(responseCode = "200", description = "Client updated.")
+    @ApiResponse(responseCode = "400", description = "Validation failed.")
+    @ApiResponse(responseCode = "404", description = "No such client, or it belongs to another business.")
     @PutMapping("/{id}")
     ClientResponse update(@PathVariable Long id, @Valid @RequestBody ClientRequest request) {
         return clientService.update(id, request);
     }
 
+    @Operation(summary = "Delete a client", description = "Refused if the client has any invoices — archive it instead.")
+    @ApiResponse(responseCode = "204", description = "Client deleted.")
+    @ApiResponse(responseCode = "404", description = "No such client, or it belongs to another business.")
+    @ApiResponse(responseCode = "409", description = "This client has invoices and cannot be deleted.")
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable Long id) {
         clientService.delete(id);

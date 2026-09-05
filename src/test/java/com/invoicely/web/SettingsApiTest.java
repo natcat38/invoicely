@@ -97,6 +97,38 @@ class SettingsApiTest {
     }
 
     @Test
+    @DisplayName("settings are scoped by the caller's own token, so one business never sees another's GST configuration")
+    void settingsNeverLeakAcrossBusinesses() throws Exception {
+        // /settings takes no id — it is scoped entirely by the business claim
+        // on the caller's token, unlike invoices/clients/payments, which are
+        // proven isolated via an explicit findByIdAndBusinessId 404. That
+        // makes this an unverified structural assumption rather than a
+        // guarded lookup, worth asserting as its own property.
+        mockMvc.perform(put("/settings").headers(as(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(settings("Acme Renovations", true, "0.09", 14)))
+                .andExpect(status().isOk());
+
+        Business other = businesses.save(new Business("Other Contractors"));
+        User otherOwner = users.save(new User(other, "Ben Owner", uniqueEmail(), "hash", Role.OWNER));
+        mockMvc.perform(put("/settings").headers(as(otherOwner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(settings("Other Contractors", false, "0.00", 30)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/settings").headers(as(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gstRegistered").value(true))
+                .andExpect(jsonPath("$.gstRate").value(0.0900))
+                .andExpect(jsonPath("$.defaultPaymentTermsDays").value(14));
+
+        mockMvc.perform(get("/settings").headers(as(otherOwner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gstRegistered").value(false))
+                .andExpect(jsonPath("$.defaultPaymentTermsDays").value(30));
+    }
+
+    @Test
     @DisplayName("staff cannot read or change what the business charges")
     void staffAreLockedOut() throws Exception {
         mockMvc.perform(get("/settings").headers(as(staff)))

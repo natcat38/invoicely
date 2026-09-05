@@ -1,5 +1,8 @@
 package com.invoicely.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.net.URI;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/team")
+@Tag(name = "Team", description = "Staff account management. Every endpoint here is owner-only.")
 class TeamController {
 
     private final TeamService teamService;
@@ -35,12 +39,21 @@ class TeamController {
         this.teamService = teamService;
     }
 
+    @Operation(summary = "List team members")
+    @ApiResponse(responseCode = "200", description = "Staff in the caller's business, with last-active info.")
+    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
     @PreAuthorize("hasRole('OWNER')")
     @GetMapping
     List<StaffResponse> list() {
         return teamService.list();
     }
 
+    @Operation(summary = "Add a staff account", description = "A temporary password is generated and returned "
+            + "once; the account must change it before doing anything else.")
+    @ApiResponse(responseCode = "201", description = "Staff account created, with its one-time temporary password.")
+    @ApiResponse(responseCode = "400", description = "Validation failed.")
+    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
+    @ApiResponse(responseCode = "409", description = "A user with this email already exists.")
     @PreAuthorize("hasRole('OWNER')")
     @PostMapping
     ResponseEntity<CreatedStaffResponse> create(@Valid @RequestBody CreateStaffRequest request) {
@@ -49,6 +62,12 @@ class TeamController {
     }
 
     /** Deactivates or reactivates a team member — the only thing a PATCH here does. */
+    @Operation(summary = "Deactivate or reactivate a team member")
+    @ApiResponse(responseCode = "200", description = "Member's active flag updated.")
+    @ApiResponse(responseCode = "400", description = "Validation failed (active is required).")
+    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
+    @ApiResponse(responseCode = "404", description = "No such team member, or they belong to another business.")
+    @ApiResponse(responseCode = "409", description = "The owner tried to deactivate their own account.")
     @PreAuthorize("hasRole('OWNER')")
     @PatchMapping("/{id}")
     StaffResponse setActive(@PathVariable Long id, @Valid @RequestBody UpdateActiveRequest request) {

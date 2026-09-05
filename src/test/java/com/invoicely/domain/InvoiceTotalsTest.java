@@ -110,6 +110,33 @@ class InvoiceTotalsTest {
     }
 
     @Test
+    @DisplayName("a subtotal landing exactly on a half-cent boundary rounds up, not to even or down")
+    void exactHalfCentBoundaryRoundsUp() {
+        Invoice invoice = invoiceFor(new Business("Sole Trader"));
+        // 3 units at 33.375 each is a subtotal of exactly 100.125 — the one
+        // boundary where HALF_UP diverges from HALF_EVEN/DOWN. Either of those
+        // would quietly produce 100.12 here; roundingIsAppliedOnceToTheSubtotal
+        // above never actually lands on a bare ?.??5, so it cannot tell them
+        // apart the way this one can.
+        invoice.addLineItem("Consulting", new BigDecimal("3"), new BigDecimal("33.375"));
+
+        assertThat(InvoiceTotals.of(invoice).subtotal()).isEqualByComparingTo("100.13");
+    }
+
+    @Test
+    @DisplayName("a fractional quantity is multiplied in full, not truncated before the subtotal is summed")
+    void fractionalQuantityIsNotTruncatedEarly() {
+        Invoice invoice = invoiceFor(new Business("Sole Trader"));
+        // 1.5 hours at $33.33/hr is 49.995 unrounded — itself another exact
+        // half-cent boundary, and only correct if LineItem.lineTotal() keeps
+        // the full unrounded product instead of rounding the quantity or the
+        // line total early.
+        invoice.addLineItem("Hourly work", new BigDecimal("1.5"), new BigDecimal("33.33"));
+
+        assertThat(InvoiceTotals.of(invoice).subtotal()).isEqualByComparingTo("50.00");
+    }
+
+    @Test
     @DisplayName("an invoice with no lines is worth nothing rather than failing")
     void anEmptyInvoiceTotalsZero() {
         InvoiceTotals totals = InvoiceTotals.of(invoiceFor(gstRegisteredAt("0.0900")));
