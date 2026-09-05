@@ -37,6 +37,9 @@ jobs:
       # cannot quietly test a different dependency tree than a developer has.
       - run: npm ci
       - run: npm run lint
+      # The preview totals mirror the API's money rounding, so they get a real
+      # test rather than trust. See web/src/lib/preview-totals.ts.
+      - run: npm test
       # `npm run build` is `tsc -b && vite build`, so this is the typecheck and
       # the production bundle in one command. A type error fails the build,
       # which is the point — nothing here is checked at runtime.
