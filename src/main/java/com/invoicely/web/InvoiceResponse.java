@@ -1,5 +1,6 @@
 package com.invoicely.web;
 
+import com.invoicely.domain.BusinessCalendar;
 import com.invoicely.domain.Invoice;
 import com.invoicely.domain.InvoiceStatus;
 import com.invoicely.domain.InvoiceTotals;
@@ -46,7 +47,7 @@ public record InvoiceResponse(
         return new InvoiceResponse(
                 invoice.getId(),
                 invoice.getNumber(),
-                OverdueInvoices.asOf(invoice, LocalDate.now()),
+                OverdueInvoices.asOf(invoice, BusinessCalendar.today()),
                 ClientSummary.from(invoice),
                 invoice.getIssueDate(),
                 invoice.getDueDate(),

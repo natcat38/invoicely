@@ -86,7 +86,7 @@ public class OverdueInvoices {
                         where i.status = com.invoicely.domain.InvoiceStatus.SENT
                           and i.dueDate < :today
                         """)
-                .setParameter("today", LocalDate.now())
+                .setParameter("today", BusinessCalendar.today())
                 .executeUpdate();
         log.info("Overdue job: flipped {} invoice(s) from SENT to OVERDUE", updated);
         return updated;

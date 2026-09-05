@@ -69,13 +69,21 @@ class InvoiceStatusTest {
     }
 
     @ParameterizedTest
-    @EnumSource(InvoiceStatus.class)
-    @DisplayName("nothing can be un-sent")
-    void nothingReturnsToAnUnsentState(InvoiceStatus status) {
-        if (status.isIssued()) {
-            assertThat(status.canTransitionTo(InvoiceStatus.DRAFT)).isFalse();
-            assertThat(status.canTransitionTo(InvoiceStatus.PENDING_APPROVAL)).isFalse();
-        }
+    @EnumSource(value = InvoiceStatus.class, names = {"SENT", "OVERDUE", "PAID"})
+    @DisplayName("nothing that has been issued can be un-sent")
+    void nothingReturnsToAnUnsentState(InvoiceStatus issued) {
+        // Restricted by names rather than skipped with an `if`: a parameterised
+        // case that runs no assertion still reports as passing, which overstates
+        // what the suite actually checks.
+        assertThat(issued.canTransitionTo(InvoiceStatus.DRAFT)).isFalse();
+        assertThat(issued.canTransitionTo(InvoiceStatus.PENDING_APPROVAL)).isFalse();
+    }
+
+    @Test
+    @DisplayName("only a rejection returns an invoice to DRAFT")
+    void onlyRejectionReturnsToDraft() {
+        assertThat(InvoiceStatus.PENDING_APPROVAL.canTransitionTo(InvoiceStatus.DRAFT)).isTrue();
+        assertThat(InvoiceStatus.DRAFT.canTransitionTo(InvoiceStatus.DRAFT)).isFalse();
     }
 
     @Test

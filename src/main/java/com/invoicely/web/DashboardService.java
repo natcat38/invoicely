@@ -1,5 +1,6 @@
 package com.invoicely.web;
 
+import com.invoicely.domain.BusinessCalendar;
 import com.invoicely.domain.InvoiceRepository;
 import com.invoicely.domain.InvoiceStatus;
 import com.invoicely.domain.InvoiceTotals;
@@ -36,7 +37,7 @@ public class DashboardService {
         Long businessId = currentRequest.businessId();
         // Read once, so every figure below describes the same instant rather
         // than straddling midnight if the request lands at the wrong moment.
-        LocalDate today = LocalDate.now();
+        LocalDate today = BusinessCalendar.today();
         LocalDate firstOfThisMonth = today.withDayOfMonth(1);
 
         BigDecimal outstandingTotal = InvoiceTotals.roundMoney(
