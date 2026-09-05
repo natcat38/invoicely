@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.invoicely.TestTokens;
 import com.invoicely.TestcontainersConfiguration;
 import com.invoicely.domain.Business;
+import com.invoicely.domain.BusinessCalendar;
 import com.invoicely.domain.BusinessRepository;
 import com.invoicely.domain.Client;
 import com.invoicely.domain.ClientRepository;
@@ -263,7 +264,7 @@ class TeamApiTest {
      * without going through {@code POST /invoices}.
      */
     private Invoice createInvoice(Client client, User createdBy, String number) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = BusinessCalendar.today();
         Invoice invoice = new Invoice(acme, client, createdBy, number, today, today.plusDays(30));
         invoice.addLineItem("Work", BigDecimal.ONE, new BigDecimal("100.00"));
         return invoices.saveAndFlush(invoice);

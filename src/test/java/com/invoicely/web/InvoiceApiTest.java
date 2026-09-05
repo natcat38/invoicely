@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.invoicely.TestTokens;
 import com.invoicely.TestcontainersConfiguration;
 import com.invoicely.domain.Business;
+import com.invoicely.domain.BusinessCalendar;
 import com.invoicely.domain.BusinessRepository;
 import com.invoicely.domain.Client;
 import com.invoicely.domain.ClientRepository;
@@ -129,7 +130,7 @@ class InvoiceApiTest {
                         .content(oneLineBody(otherClient.getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.number")
-                        .value("INV-" + LocalDate.now().getYear() + "-0001"));
+                        .value("INV-" + BusinessCalendar.today().getYear() + "-0001"));
     }
 
     @Test

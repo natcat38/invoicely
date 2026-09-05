@@ -26,6 +26,15 @@ import org.springframework.test.context.TestPropertySource;
  * only decides when Spring calls the method, not what the method does, so
  * calling it straight from the test proves the same behaviour without an
  * actual overnight wait.
+ *
+ * <p>Every date here comes from {@link BusinessCalendar#today()}, never
+ * {@code LocalDate.now()}. They are the same date on a laptop set to
+ * Singapore time and a different one for eight hours a day on a CI runner set
+ * to UTC — so a test that says "due today" with {@code LocalDate.now()} is
+ * really saying "due yesterday" to the code under test every evening, and
+ * fails for a reason that has nothing to do with a defect. ADR-0008 pins the
+ * business day in code precisely so that this question has one answer; a test
+ * has to ask the same clock the production code asks.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -59,7 +68,7 @@ class OverdueInvoicesTest {
     void sentInvoiceDueYesterdayFlipsToOverdue() {
         drainPreExistingOverdue();
         Invoice invoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0001",
-                LocalDate.now().minusDays(1), InvoiceStatus.SENT);
+                BusinessCalendar.today().minusDays(1), InvoiceStatus.SENT);
         entityManager.persist(invoice);
         entityManager.flush();
 
@@ -75,7 +84,7 @@ class OverdueInvoicesTest {
     void sentInvoiceDueTodayIsNotOverdue() {
         drainPreExistingOverdue();
         Invoice invoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0002",
-                LocalDate.now(), InvoiceStatus.SENT);
+                BusinessCalendar.today(), InvoiceStatus.SENT);
         entityManager.persist(invoice);
         entityManager.flush();
 
@@ -90,7 +99,7 @@ class OverdueInvoicesTest {
     @DisplayName("a DRAFT invoice past its due date is untouched — only SENT invoices go overdue")
     void draftInvoicePastDueIsUntouched() {
         Invoice invoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0003",
-                LocalDate.now().minusDays(1), InvoiceStatus.DRAFT);
+                BusinessCalendar.today().minusDays(1), InvoiceStatus.DRAFT);
         entityManager.persist(invoice);
         entityManager.flush();
 
@@ -104,7 +113,7 @@ class OverdueInvoicesTest {
     @DisplayName("a PENDING_APPROVAL invoice past its due date is untouched")
     void pendingApprovalInvoicePastDueIsUntouched() {
         Invoice invoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0004",
-                LocalDate.now().minusDays(1), InvoiceStatus.PENDING_APPROVAL);
+                BusinessCalendar.today().minusDays(1), InvoiceStatus.PENDING_APPROVAL);
         entityManager.persist(invoice);
         entityManager.flush();
 
@@ -118,7 +127,7 @@ class OverdueInvoicesTest {
     @DisplayName("a PAID invoice past its due date is untouched")
     void paidInvoicePastDueIsUntouched() {
         Invoice invoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0005",
-                LocalDate.now().minusDays(1), InvoiceStatus.PAID);
+                BusinessCalendar.today().minusDays(1), InvoiceStatus.PAID);
         entityManager.persist(invoice);
         entityManager.flush();
 
@@ -133,7 +142,7 @@ class OverdueInvoicesTest {
     void jobSpansBusinesses() {
         drainPreExistingOverdue();
         Invoice acmeInvoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0006",
-                LocalDate.now().minusDays(1), InvoiceStatus.SENT);
+                BusinessCalendar.today().minusDays(1), InvoiceStatus.SENT);
         entityManager.persist(acmeInvoice);
 
         Business other = entityManager.persist(new Business("Other Contractors"));
@@ -141,7 +150,7 @@ class OverdueInvoicesTest {
                 new User(other, "Ben Owner", "ben@other.example", "hash", Role.OWNER));
         Client otherClient = entityManager.persist(new Client(other, "Their Client"));
         Invoice otherInvoice = invoiceDueOn(other, otherClient, otherOwner, "INV-2026-0001",
-                LocalDate.now().minusDays(1), InvoiceStatus.SENT);
+                BusinessCalendar.today().minusDays(1), InvoiceStatus.SENT);
         entityManager.persist(otherInvoice);
         entityManager.flush();
 
@@ -157,11 +166,11 @@ class OverdueInvoicesTest {
     @DisplayName("asOf reports OVERDUE for a stored-SENT invoice past its due date, without saving it")
     void asOfReportsOverdueWithoutMutating() {
         Invoice invoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0007",
-                LocalDate.now().minusDays(1), InvoiceStatus.SENT);
+                BusinessCalendar.today().minusDays(1), InvoiceStatus.SENT);
         entityManager.persist(invoice);
         entityManager.flush();
 
-        assertThat(OverdueInvoices.asOf(invoice, LocalDate.now())).isEqualTo(InvoiceStatus.OVERDUE);
+        assertThat(OverdueInvoices.asOf(invoice, BusinessCalendar.today())).isEqualTo(InvoiceStatus.OVERDUE);
 
         // Nothing was written: the stored row still says SENT, since only the
         // scheduled job persists the transition.
@@ -173,12 +182,12 @@ class OverdueInvoicesTest {
     @DisplayName("asOf reports the stored status when the invoice isn't a past-due SENT one")
     void asOfReportsStoredStatusOtherwise() {
         Invoice dueToday = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0008",
-                LocalDate.now(), InvoiceStatus.SENT);
+                BusinessCalendar.today(), InvoiceStatus.SENT);
         Invoice paid = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0009",
-                LocalDate.now().minusDays(1), InvoiceStatus.PAID);
+                BusinessCalendar.today().minusDays(1), InvoiceStatus.PAID);
 
-        assertThat(OverdueInvoices.asOf(dueToday, LocalDate.now())).isEqualTo(InvoiceStatus.SENT);
-        assertThat(OverdueInvoices.asOf(paid, LocalDate.now())).isEqualTo(InvoiceStatus.PAID);
+        assertThat(OverdueInvoices.asOf(dueToday, BusinessCalendar.today())).isEqualTo(InvoiceStatus.SENT);
+        assertThat(OverdueInvoices.asOf(paid, BusinessCalendar.today())).isEqualTo(InvoiceStatus.PAID);
     }
 
     /** An invoice due on {@code dueDate}, saved directly in {@code status} without going through the lifecycle. */

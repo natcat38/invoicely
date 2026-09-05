@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.invoicely.TestTokens;
 import com.invoicely.TestcontainersConfiguration;
 import com.invoicely.domain.Business;
+import com.invoicely.domain.BusinessCalendar;
 import com.invoicely.domain.BusinessRepository;
 import com.invoicely.domain.Client;
 import com.invoicely.domain.ClientRepository;
@@ -246,7 +247,7 @@ class InvoiceLifecycleApiTest {
     @Test
     @DisplayName("an invoice with no lines cannot be sent")
     void anEmptyInvoiceCannotBeSent() throws Exception {
-        LocalDate issued = LocalDate.now();
+        LocalDate issued = BusinessCalendar.today();
         Invoice empty = invoices.saveAndFlush(
                 new Invoice(acme, client, owner, "INV-2026-9001", issued, issued.plusDays(30)));
 
@@ -275,7 +276,7 @@ class InvoiceLifecycleApiTest {
      * reason that has nothing to do with sending.
      */
     private Invoice draft() {
-        LocalDate issued = LocalDate.now();
+        LocalDate issued = BusinessCalendar.today();
         Invoice invoice = new Invoice(acme, client, staff,
                 "INV-2026-" + UUID.randomUUID().toString().substring(0, 4),
                 issued, issued.plusDays(30));

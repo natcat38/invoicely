@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.invoicely.TestTokens;
 import com.invoicely.TestcontainersConfiguration;
 import com.invoicely.domain.Business;
+import com.invoicely.domain.BusinessCalendar;
 import com.invoicely.domain.BusinessRepository;
 import com.invoicely.domain.Client;
 import com.invoicely.domain.ClientRepository;
@@ -92,12 +93,12 @@ class DashboardApiTest {
         sentInvoice("INV-2026-0001", BigDecimal.ZERO, null);
         // Row 2: SENT, partially paid 500.00 this month -> balance 1,047.80.
         // Marked OVERDUE, so it also counts toward the overdue figures.
-        Invoice overdue = sentInvoice("INV-2026-0002", new BigDecimal("500.00"), LocalDate.now());
+        Invoice overdue = sentInvoice("INV-2026-0002", new BigDecimal("500.00"), BusinessCalendar.today());
         overdue.setStatus(InvoiceStatus.OVERDUE);
         invoices.saveAndFlush(overdue);
         // Row 3: fully paid -> PAID, so it contributes nothing outstanding.
         // Its payment predates this month, proving revenue does not pick it up.
-        Invoice paid = sentInvoice("INV-2026-0003", new BigDecimal("1547.80"), LocalDate.now().minusMonths(2));
+        Invoice paid = sentInvoice("INV-2026-0003", new BigDecimal("1547.80"), BusinessCalendar.today().minusMonths(2));
         paid.setStatus(InvoiceStatus.PAID);
         invoices.saveAndFlush(paid);
         // Waiting for the owner: the fourth headline stat, and its queue.
@@ -148,7 +149,7 @@ class DashboardApiTest {
         Client otherClient = clients.save(new Client(other, "Their Client"));
 
         Invoice theirs = new Invoice(other, otherClient, otherOwner, "INV-2026-0001",
-                LocalDate.now(), LocalDate.now().plusDays(30));
+                BusinessCalendar.today(), BusinessCalendar.today().plusDays(30));
         theirs.addLineItem("Work", BigDecimal.ONE, new BigDecimal("999.00"));
         theirs.setGstRateSnapshot(other.getGstRate());
         theirs.setStatus(InvoiceStatus.SENT);
@@ -163,8 +164,8 @@ class DashboardApiTest {
     @Test
     @DisplayName("revenue only counts payments received this calendar month")
     void revenueCountsOnlyThisMonth() throws Exception {
-        sentInvoice("INV-2026-0001", new BigDecimal("200.00"), LocalDate.now());
-        sentInvoice("INV-2026-0002", new BigDecimal("300.00"), LocalDate.now().minusMonths(1));
+        sentInvoice("INV-2026-0001", new BigDecimal("200.00"), BusinessCalendar.today());
+        sentInvoice("INV-2026-0002", new BigDecimal("300.00"), BusinessCalendar.today().minusMonths(1));
 
         mockMvc.perform(get("/dashboard").headers(ownerAuth()))
                 .andExpect(status().isOk())
@@ -191,7 +192,7 @@ class DashboardApiTest {
      * (subtotal 1,420.00), optionally with a payment recorded against it.
      */
     private Invoice sentInvoice(String number, BigDecimal paymentAmount, LocalDate paidAt) {
-        Invoice invoice = new Invoice(acme, client, owner, number, LocalDate.now(), LocalDate.now().plusDays(30));
+        Invoice invoice = new Invoice(acme, client, owner, number, BusinessCalendar.today(), BusinessCalendar.today().plusDays(30));
         invoice.addLineItem("Design", new BigDecimal("2"), new BigDecimal("400.00"));
         invoice.addLineItem("Build", BigDecimal.ONE, new BigDecimal("620.00"));
         invoice.setGstRateSnapshot(acme.getGstRate());
@@ -203,14 +204,14 @@ class DashboardApiTest {
     }
 
     private Invoice pendingInvoice(String number) {
-        Invoice invoice = new Invoice(acme, client, staff, number, LocalDate.now(), LocalDate.now().plusDays(30));
+        Invoice invoice = new Invoice(acme, client, staff, number, BusinessCalendar.today(), BusinessCalendar.today().plusDays(30));
         invoice.addLineItem("Work", BigDecimal.ONE, new BigDecimal("100.00"));
         invoice.setStatus(InvoiceStatus.PENDING_APPROVAL);
         return invoices.saveAndFlush(invoice);
     }
 
     private Invoice draftInvoice(String number) {
-        Invoice invoice = new Invoice(acme, client, staff, number, LocalDate.now(), LocalDate.now().plusDays(30));
+        Invoice invoice = new Invoice(acme, client, staff, number, BusinessCalendar.today(), BusinessCalendar.today().plusDays(30));
         invoice.addLineItem("Work", BigDecimal.ONE, new BigDecimal("50.00"));
         return invoices.saveAndFlush(invoice);
     }

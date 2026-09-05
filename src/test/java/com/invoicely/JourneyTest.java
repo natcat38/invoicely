@@ -1,5 +1,6 @@
 package com.invoicely;
 
+import com.invoicely.domain.BusinessCalendar;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -120,7 +121,7 @@ class JourneyTest {
                         """), status().isCreated()).andReturn();
         int clientId = JsonPath.read(body(client), "$.id");
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = BusinessCalendar.today();
         MvcResult drafted = perform(post("/invoices").headers(bearer(staffToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -244,7 +245,7 @@ class JourneyTest {
         perform(get("/clients/" + clientId).headers(bearer(secondToken)), status().isNotFound());
         perform(post("/invoices/" + invoiceId + "/send").headers(bearer(secondToken)),
                 status().isNotFound());
-        perform(payment(secondToken, invoiceId, "1.00", LocalDate.now()), status().isNotFound());
+        perform(payment(secondToken, invoiceId, "1.00", BusinessCalendar.today()), status().isNotFound());
 
         // And nothing of the first business leaks into the second's own views.
         perform(get("/invoices").headers(bearer(secondToken)), status().isOk())
