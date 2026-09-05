@@ -1,5 +1,6 @@
 package com.invoicely.web;
 
+import com.invoicely.domain.BusinessCalendar;
 import com.invoicely.domain.Business;
 import com.invoicely.domain.BusinessRepository;
 import com.invoicely.domain.Client;
@@ -75,7 +76,7 @@ public class InvoiceService {
         User createdBy = users.findByIdAndBusinessId(currentRequest.userId(), businessId)
                 .orElseThrow(() -> new NotFoundException("User"));
 
-        LocalDate issueDate = request.issueDate() == null ? LocalDate.now() : request.issueDate();
+        LocalDate issueDate = request.issueDate() == null ? BusinessCalendar.today() : request.issueDate();
         LocalDate dueDate = request.dueDate() == null
                 ? issueDate.plusDays(business.getDefaultPaymentTermsDays())
                 : request.dueDate();
@@ -103,7 +104,8 @@ public class InvoiceService {
      */
     @Transactional(readOnly = true)
     public Page<InvoiceSummaryResponse> list(InvoiceStatus status, Long clientId, Pageable pageable) {
-        return invoices.findForList(currentRequest.businessId(), status, clientId, pageable)
+        return invoices.findForList(
+                        currentRequest.businessId(), status, clientId, BusinessCalendar.today(), pageable)
                 .map(InvoiceSummaryResponse::from);
     }
 

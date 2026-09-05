@@ -2,11 +2,15 @@ package com.invoicely.web;
 
 import com.invoicely.domain.Business;
 import com.invoicely.domain.BusinessRepository;
+import com.invoicely.domain.InvoiceRepository;
 import com.invoicely.domain.Role;
 import com.invoicely.domain.User;
 import com.invoicely.domain.UserRepository;
 import com.invoicely.security.TemporaryPasswords;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,25 +33,81 @@ public class TeamService {
 
     private final UserRepository users;
     private final BusinessRepository businesses;
+    private final InvoiceRepository invoices;
     private final CurrentRequest currentRequest;
     private final PasswordEncoder passwordEncoder;
 
     TeamService(UserRepository users,
                 BusinessRepository businesses,
+                InvoiceRepository invoices,
                 CurrentRequest currentRequest,
                 PasswordEncoder passwordEncoder) {
         this.users = users;
         this.businesses = businesses;
+        this.invoices = invoices;
         this.currentRequest = currentRequest;
         this.passwordEncoder = passwordEncoder;
     }
 
-    /** Every user in the caller's business, alphabetical (Product Scope §2). */
+    /**
+     * Every user in the caller's business, alphabetical (Product Scope §2),
+     * each carrying an invoices-created count and a last-active date.
+     *
+     * <p>Those two aggregates come from exactly two queries
+     * ({@link InvoiceRepository#countAndLastCreatedByUser} and
+     * {@link InvoiceRepository#lastSentByUser}), regardless of how many people
+     * are on the team — not one query per staff member. This method's whole
+     * job is to zip those rows onto the user list.
+     */
     @Transactional(readOnly = true)
     List<StaffResponse> list() {
-        return users.findByBusinessIdOrderByNameAsc(currentRequest.businessId()).stream()
-                .map(StaffResponse::from)
+        Long businessId = currentRequest.businessId();
+        List<User> team = users.findByBusinessIdOrderByNameAsc(businessId);
+
+        Map<Long, Object[]> created = index(invoices.countAndLastCreatedByUser(businessId));
+        Map<Long, Object[]> sent = index(invoices.lastSentByUser(businessId));
+
+        return team.stream()
+                .map(user -> StaffResponse.from(user).withActivity(
+                        invoicesCreated(created, user.getId()),
+                        lastActive(created, sent, user.getId())))
                 .toList();
+    }
+
+    /** Turns a list of {@code [userId, ...]} rows into a lookup by that id. */
+    private Map<Long, Object[]> index(List<Object[]> rows) {
+        Map<Long, Object[]> byUserId = new HashMap<>();
+        for (Object[] row : rows) {
+            byUserId.put((Long) row[0], row);
+        }
+        return byUserId;
+    }
+
+    /** Zero for a user who has never created an invoice, not null — Product Scope §2. */
+    private long invoicesCreated(Map<Long, Object[]> created, Long userId) {
+        Object[] row = created.get(userId);
+        return row == null ? 0 : (Long) row[1];
+    }
+
+    /**
+     * The more recent of this user's own {@code created_at} (drafting an
+     * invoice) and {@code sent_at} (sending one) — there is no separate
+     * activity-tracking table, per the Tech Scope. Null when neither happened.
+     */
+    private Instant lastActive(Map<Long, Object[]> created, Map<Long, Object[]> sent, Long userId) {
+        Object[] createdRow = created.get(userId);
+        Instant lastCreated = createdRow == null ? null : (Instant) createdRow[2];
+
+        Object[] sentRow = sent.get(userId);
+        Instant lastSent = sentRow == null ? null : (Instant) sentRow[1];
+
+        if (lastCreated == null) {
+            return lastSent;
+        }
+        if (lastSent == null) {
+            return lastCreated;
+        }
+        return lastCreated.isAfter(lastSent) ? lastCreated : lastSent;
     }
 
     /**

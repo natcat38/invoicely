@@ -6,6 +6,7 @@ import java.net.URI;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
  * request, hand it to {@link InvoiceService}, shape the response — so the rules
  * stay in one place and stay testable without a servlet.
  *
- * <p>There is no endpoint here for submitting, sending, rejecting or paying an
- * invoice. Those change its status, and status changes need the role checks
- * that arrive with Task 4, so they land together in Task 5.
+ * <p>The lifecycle endpoints below carry the role half of the rules, as
+ * {@code @PreAuthorize}. The state half lives in
+ * {@link com.invoicely.domain.InvoiceStatus}. Keeping them apart is what makes
+ * "staff may not send" (403) and "this invoice was already sent" (409) two
+ * separate answers rather than one muddled one.
  */
 @RestController
 @RequestMapping("/invoices")
@@ -34,9 +37,11 @@ class InvoiceController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final InvoiceService invoiceService;
+    private final InvoiceLifecycleService lifecycleService;
 
-    InvoiceController(InvoiceService invoiceService) {
+    InvoiceController(InvoiceService invoiceService, InvoiceLifecycleService lifecycleService) {
         this.invoiceService = invoiceService;
+        this.lifecycleService = lifecycleService;
     }
 
     @PostMapping
@@ -79,5 +84,29 @@ class InvoiceController {
     ResponseEntity<Void> delete(@PathVariable Long id) {
         invoiceService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Hands a draft to the owner for approval. Deliberately has no
+     * {@code @PreAuthorize}: submitting is the staff half of maker-checker, and
+     * an owner may submit their own draft too (Product Scope §4).
+     */
+    @PostMapping("/{id}/submit")
+    InvoiceResponse submit(@PathVariable Long id) {
+        return lifecycleService.submit(id);
+    }
+
+    /** Issues the invoice to the client, and freezes its GST rate. Owner only. */
+    @PreAuthorize("hasRole('OWNER')")
+    @PostMapping("/{id}/send")
+    InvoiceResponse send(@PathVariable Long id) {
+        return lifecycleService.send(id);
+    }
+
+    /** Returns a submitted invoice to DRAFT with a note. Owner only. */
+    @PreAuthorize("hasRole('OWNER')")
+    @PostMapping("/{id}/reject")
+    InvoiceResponse reject(@PathVariable Long id, @Valid @RequestBody RejectRequest request) {
+        return lifecycleService.reject(id, request.note());
     }
 }

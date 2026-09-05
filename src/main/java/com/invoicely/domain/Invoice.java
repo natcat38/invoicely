@@ -146,6 +146,18 @@ public class Invoice {
     }
 
     /**
+     * Whether this invoice has been issued to the client.
+     *
+     * <p>Read from {@code sentAt} rather than from the status, because the
+     * status keeps moving afterwards — SENT becomes OVERDUE becomes PAID — while
+     * the question "has the client seen this?" is answered once and stays
+     * answered.
+     */
+    public boolean hasBeenSent() {
+        return sentAt != null;
+    }
+
+    /**
      * Drops every line item. Used when a draft is replaced wholesale: working
      * out which of the submitted lines are edits of existing rows and which are
      * new would buy nothing, since only drafts can be edited and nothing yet
