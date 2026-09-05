@@ -11,12 +11,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.invoicely.TestTokens;
 import com.invoicely.TestcontainersConfiguration;
 import com.invoicely.domain.Business;
+import com.invoicely.domain.BusinessCalendar;
 import com.invoicely.domain.BusinessRepository;
 import com.invoicely.domain.Client;
 import com.invoicely.domain.ClientRepository;
 import com.invoicely.domain.Invoice;
 import com.invoicely.domain.InvoiceRepository;
 import com.invoicely.domain.InvoiceStatus;
+import com.invoicely.domain.PaymentMethod;
 import com.invoicely.domain.Role;
 import com.invoicely.domain.User;
 import com.invoicely.domain.UserRepository;
@@ -128,7 +130,7 @@ class InvoiceApiTest {
                         .content(oneLineBody(otherClient.getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.number")
-                        .value("INV-" + LocalDate.now().getYear() + "-0001"));
+                        .value("INV-" + BusinessCalendar.today().getYear() + "-0001"));
     }
 
     @Test
@@ -253,6 +255,68 @@ class InvoiceApiTest {
                 .andExpect(jsonPath("$.number").value("INV-2026-0001"))
                 .andExpect(jsonPath("$.lineItems.length()").value(1))
                 .andExpect(jsonPath("$.total").value(150.00));
+    }
+
+    @Test
+    @DisplayName("a fetched invoice carries the bill-to block, the business letterhead and amountPaid")
+    void fetchedInvoiceCarriesTheDocumentContract() throws Exception {
+        // The bill-to and letterhead blocks are read live off the client/business
+        // rows (ADR-0011), so setting them here is enough to prove the response
+        // reflects today's data rather than anything copied at invoice creation.
+        acmeClient.setAddress("1 Cafe Street, Singapore 123456");
+        acmeClient.setContactPerson("Chloe Chua");
+        acmeClient.setEmail("chloe@brightcafe.example");
+        clients.saveAndFlush(acmeClient);
+
+        acme.setAddress("1 Renovation Row, Singapore 654321");
+        acme.setUen("201234567A");
+        businesses.saveAndFlush(acme);
+
+        Invoice invoice = createInvoice(acme, acmeOwner, acmeClient, "INV-2026-0001");
+        invoice.addPayment(new BigDecimal("40.00"), LocalDate.of(2026, 2, 5), PaymentMethod.PAYNOW, acmeOwner);
+        // flush(), not saveAndFlush(invoice). createInvoice already persisted
+        // this invoice, so it is managed by the current transaction and
+        // Hibernate will write the new payment out on its own. Passing it back
+        // through save() would call merge() instead, and Invoice's payments
+        // collection cascades PERSIST only — merge is not cascaded to it, so
+        // the payment would be inserted as an empty row and fail its
+        // invoice_id not-null constraint. Other tests here can use
+        // saveAndFlush because their invoice is still transient at that point.
+        invoices.flush();
+
+        mockMvc.perform(get("/invoices/" + invoice.getId()).headers(acmeHeaders()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.client.address").value("1 Cafe Street, Singapore 123456"))
+                .andExpect(jsonPath("$.client.contactPerson").value("Chloe Chua"))
+                .andExpect(jsonPath("$.client.email").value("chloe@brightcafe.example"))
+                .andExpect(jsonPath("$.business.name").value("Acme Renovations"))
+                .andExpect(jsonPath("$.business.address").value("1 Renovation Row, Singapore 654321"))
+                .andExpect(jsonPath("$.business.uen").value("201234567A"))
+                .andExpect(jsonPath("$.business.gstRegistered").value(false))
+                // 100.00 line total, 40.00 paid.
+                .andExpect(jsonPath("$.amountPaid").value(40.00))
+                .andExpect(jsonPath("$.balance").value(60.00));
+    }
+
+    @Test
+    @DisplayName("amountPaid is 0.00, not null, on an unpaid invoice, and a business's letterhead is null, not blank, before it sets one")
+    void unpaidInvoiceAndUnsetLetterheadRenderAsExplicitNullsNotBlanks() throws Exception {
+        // acme and acmeClient are seeded with neither an address, a UEN nor any
+        // client contact details, and this invoice has had no payment recorded.
+        // The document must be able to tell "not set" apart from "set to
+        // empty" so it knows to omit the letterhead row rather than print a
+        // blank line — asserting doesNotExist proves the field comes back as
+        // JSON null (or omitted), never "".
+        Invoice invoice = createInvoice(acme, acmeOwner, acmeClient, "INV-2026-0001");
+
+        mockMvc.perform(get("/invoices/" + invoice.getId()).headers(acmeHeaders()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amountPaid").value(0.00))
+                .andExpect(jsonPath("$.business.address").doesNotExist())
+                .andExpect(jsonPath("$.business.uen").doesNotExist())
+                .andExpect(jsonPath("$.client.address").doesNotExist())
+                .andExpect(jsonPath("$.client.contactPerson").doesNotExist())
+                .andExpect(jsonPath("$.client.email").doesNotExist());
     }
 
     @Test

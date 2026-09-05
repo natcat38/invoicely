@@ -15,6 +15,7 @@ import com.invoicely.domain.Role;
 import com.invoicely.domain.User;
 import com.invoicely.domain.UserRepository;
 import com.invoicely.security.JwtService;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -176,10 +177,90 @@ class AuthApiTest {
         // different code path. This proves the more dangerous one:
         // AccountStateFilter re-reads isActive() from the database on every
         // request, so a token minted before the change does not keep working
-        // until it expires.
+        // until it expires. 403, not 401 (ADR-0010): the token is genuine and
+        // names exactly who it claims to, so this is authorisation failing,
+        // not authentication.
         mockMvc.perform(get("/clients").headers(bearer))
-                .andExpect(status().isUnauthorized())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.type").value("/problems/account-deactivated"));
+    }
+
+    @Test
+    @DisplayName("a token minted before password_changed_at moves past it is superseded, and is rejected 401")
+    void tokenIssuedBeforePasswordChangeIsRejected() throws Exception {
+        Business business = businesses.save(new Business("Acme Renovations"));
+        User owner = users.save(new User(business, "Ada Owner", uniqueEmail(),
+                passwordEncoder.encode("correct-password"), Role.OWNER));
+        HttpHeaders oldToken = TestTokens.bearer(jwtService, owner);
+
+        // Proven live before the password "changes" below, so the rejection
+        // that follows is caused by that change and not by anything else
+        // wrong with the token.
+        mockMvc.perform(get("/clients").headers(oldToken)).andExpect(status().isOk());
+
+        // Set directly on the row, a full two seconds ahead, rather than by
+        // calling POST /auth/change-password and relying on real elapsed
+        // time: AccountStateFilter rejects only a *strictly* older token
+        // (ADR-0010's one-second seam), and a token minted moments ago by
+        // this same test could easily land in the same wall-clock second as
+        // a real change-password call, making that approach to this
+        // assertion flaky rather than the code wrong. The real end-to-end
+        // path — change-password itself invalidating the token used to call
+        // it while its own fresh token keeps working — is proven separately
+        // by changingPasswordDoesNotLogOutTheCurrentSession below.
+        User reloaded = users.findById(owner.getId()).orElseThrow();
+        reloaded.setPasswordChangedAt(Instant.now().plusSeconds(2));
+        users.saveAndFlush(reloaded);
+
+        mockMvc.perform(get("/clients").headers(oldToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.type").value("/problems/token-superseded"));
+    }
+
+    @Test
+    @DisplayName("a token for a user who has never changed their password still works: null is not epoch")
+    void tokenWorksWhenPasswordWasNeverChanged() throws Exception {
+        Business business = businesses.save(new Business("Acme Renovations"));
+        User owner = users.save(new User(business, "Ada Owner", uniqueEmail(),
+                passwordEncoder.encode("correct-password"), Role.OWNER));
+        assertThat(owner.getPasswordChangedAt()).isNull();
+
+        mockMvc.perform(get("/clients").headers(TestTokens.bearer(jwtService, owner)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("changing your password does not log you out of the session you changed it from")
+    void changingPasswordDoesNotLogOutTheCurrentSession() throws Exception {
+        Business business = businesses.save(new Business("Acme Renovations"));
+        User owner = users.save(new User(business, "Ada Owner", uniqueEmail(),
+                passwordEncoder.encode("correct-password"), Role.OWNER));
+        HttpHeaders sessionToken = TestTokens.bearer(jwtService, owner);
+
+        // The real path: AuthService.changePassword stamps password_changed_at
+        // and mints a fresh token in the same call, so that fresh token's iat
+        // can never be strictly before the stamp it was minted after — this
+        // assertion needs no clock trickery to be reliable.
+        String body = mockMvc.perform(post("/auth/change-password").headers(sessionToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "correct-password",
+                                  "newPassword": "a-newer-password"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        AuthResponse response = objectMapper.readValue(body, AuthResponse.class);
+        HttpHeaders freshToken = new HttpHeaders();
+        freshToken.setBearerAuth(response.token());
+
+        // The fresh token change-password just returned keeps working: the
+        // caller lands back in the app, not at a login screen, which is the
+        // whole point of stamping password_changed_at and minting the fresh
+        // token in the same call (ADR-0010).
+        mockMvc.perform(get("/clients").headers(freshToken)).andExpect(status().isOk());
     }
 
     @Test
@@ -302,6 +383,47 @@ class AuthApiTest {
     void unauthenticatedRequestsAreRejected() throws Exception {
         mockMvc.perform(get("/clients"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /auth/me returns the caller's own identity, with no token in the response")
+    void meReturnsTheCallersIdentity() throws Exception {
+        Business business = businesses.save(new Business("Acme Renovations"));
+        User owner = users.save(new User(business, "Ada Owner", uniqueEmail(),
+                passwordEncoder.encode("correct-password"), Role.OWNER));
+
+        mockMvc.perform(get("/auth/me").headers(TestTokens.bearer(jwtService, owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(owner.getId()))
+                .andExpect(jsonPath("$.name").value("Ada Owner"))
+                .andExpect(jsonPath("$.role").value("OWNER"))
+                .andExpect(jsonPath("$.businessName").value("Acme Renovations"))
+                .andExpect(jsonPath("$.mustChangePassword").value(false))
+                // MeResponse deliberately has no token field at all — see its
+                // Javadoc for why a read endpoint must never be able to hand
+                // out a fresh one.
+                .andExpect(jsonPath("$.token").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /auth/me with no token at all is rejected")
+    void meWithoutATokenIsRejected() throws Exception {
+        mockMvc.perform(get("/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /auth/me is blocked for a user who must still change their password, same as everything else")
+    void meBlocksAUserWhoMustChangePassword() throws Exception {
+        Business business = businesses.save(new Business("Acme Renovations"));
+        User staff = new User(business, "New Staff", uniqueEmail(),
+                passwordEncoder.encode("temporary-password"), Role.STAFF);
+        staff.setMustChangePassword(true);
+        staff = users.save(staff);
+
+        mockMvc.perform(get("/auth/me").headers(TestTokens.bearer(jwtService, staff)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("/problems/password-change-required"));
     }
 
     private String registerBody(String businessName, String email) {

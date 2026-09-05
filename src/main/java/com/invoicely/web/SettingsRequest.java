@@ -18,6 +18,11 @@ import java.math.BigDecimal;
  * <p>Changing the rate never touches an invoice that has already been sent:
  * those carry their own snapshot, taken at send time. See
  * {@link com.invoicely.domain.InvoiceTotals}.
+ *
+ * <p>{@code address} and {@code uen} are the invoice document's letterhead
+ * (ADR-0011) and, unlike every other field here, are optional: a business may
+ * legitimately have neither set, and the document just prints a thinner
+ * letterhead rather than rejecting the request.
  */
 public record SettingsRequest(
         @NotBlank(message = "Enter a business name.")
@@ -34,5 +39,11 @@ public record SettingsRequest(
         BigDecimal gstRate,
 
         @NotNull(message = "Choose payment terms.")
-        Integer defaultPaymentTermsDays) {
+        Integer defaultPaymentTermsDays,
+
+        @Size(max = 500, message = "Keep the address under 500 characters.")
+        String address,
+
+        @Size(max = 20, message = "Keep the UEN under 20 characters.")
+        String uen) {
 }

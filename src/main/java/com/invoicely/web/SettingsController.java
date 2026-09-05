@@ -30,7 +30,7 @@ class SettingsController {
     }
 
     @Operation(summary = "Get business settings")
-    @ApiResponse(responseCode = "200", description = "Current settings.")
+    @ApiResponse(responseCode = "200", description = "Current settings, including the invoice letterhead (address, UEN).")
     @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
     @PreAuthorize("hasRole('OWNER')")
     @GetMapping
@@ -39,7 +39,9 @@ class SettingsController {
     }
 
     /** A full replace rather than a patch — the Settings page submits every field. */
-    @Operation(summary = "Replace business settings", description = "Full replace — the Settings page submits every field.")
+    @Operation(summary = "Replace business settings", description = "Full replace — the Settings page submits every field. "
+            + "address and uen are optional and feed the invoice letterhead (ADR-0011); "
+            + "they are read live by every invoice document, so a change here changes what an already-sent invoice prints.")
     @ApiResponse(responseCode = "200", description = "Settings updated.")
     @ApiResponse(responseCode = "400", description = "Validation failed, or defaultPaymentTermsDays is not 7, 14 or 30.")
     @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")

@@ -14,13 +14,18 @@ dashboard of what's outstanding, overdue, and earned this month.
 
 ## Status
 
-**Phase 1 (the API) is complete through Task 6** of the
-[Tech Scope](docs/Invoice_Tech_Scope.md): domain model, CRUD, JWT auth with
-roles, the full lifecycle and payments, tests, and CI.
+**Phase 1 (the API) is complete** — Tasks 1–6 of the
+[Tech Scope](docs/Invoice_Tech_Scope.md) (domain model, CRUD, JWT auth with
+roles, the full lifecycle and payments, tests, CI) followed by a full-repo
+audit and hardening pass whose reports are kept in
+[`reports/phase1-audit/`](reports/phase1-audit/).
 
-**Phase 2 (the React UI) is not built.** Nothing in this repo renders a
-screen. Tasks 7–9 in the Tech Scope cover it; until then, the API is used
-through [Swagger UI](#api-tour) or a plain HTTP client.
+**Phase 2 (the React UI) is in progress.** The API side of it is done —
+CORS, `GET /auth/me` for session restore, login throttling, token
+invalidation on password change, and the data the invoice document needs to
+render (letterhead, bill-to, `amountPaid`). Nothing in this repo renders a
+screen yet; until it does, the API is used through
+[Swagger UI](#api-tour) or a plain HTTP client.
 
 ## Stack
 
@@ -61,6 +66,7 @@ Interactive docs, once the app is running: `http://localhost:8080/swagger-ui.htm
 | Auth | `POST /auth/register` | anyone (creates the business + owner) |
 | Auth | `POST /auth/login` | anyone |
 | Auth | `POST /auth/change-password` | any authenticated user |
+| Auth | `GET /auth/me` | any authenticated user (session restore after a page reload) |
 | Clients | `POST /clients`, `GET /clients` (`archived`, `q`, `page`, `size`), `GET /clients/{id}`, `PUT /clients/{id}`, `DELETE /clients/{id}` | any role |
 | Invoices | `POST /invoices`, `GET /invoices` (`status`, `clientId`, `page`, `size`; defaults to a "needs attention" sort), `GET /invoices/{id}`, `PUT /invoices/{id}`, `DELETE /invoices/{id}` | any role |
 | Lifecycle | `POST /invoices/{id}/submit` | any role (staff's half of maker-checker) |
@@ -69,11 +75,15 @@ Interactive docs, once the app is running: `http://localhost:8080/swagger-ui.htm
 | Payments | `POST /invoices/{id}/payments`, `GET /invoices/{id}/payments` | owner only |
 | Team | `GET /team`, `POST /team`, `PATCH /team/{id}` | owner only |
 | Dashboard | `GET /dashboard` | owner only |
-| Settings | `GET /settings`, `PUT /settings` | owner only (business name, GST registration and rate, payment terms) |
+| Settings | `GET /settings`, `PUT /settings` | owner only (business name, address and UEN for the invoice letterhead, GST registration and rate, payment terms) |
 | Ping | `GET /ping` | anyone, no auth (health check for a load balancer) |
 
 `GET /v3/api-docs` and the Swagger UI paths are also open without a token,
 since the documentation itself carries no data.
+
+The two open endpoints are throttled: ten failed attempts from one IP address
+in fifteen minutes answers `429` with a `Retry-After` header until the window
+rolls over. Only failures count, so logging in successfully clears the tally.
 
 ## Design decisions
 
@@ -109,6 +119,14 @@ you want to see the reasoning, not just the outcome.
 - [0009 — owner/staff role model](docs/adr/0009-owner-staff-role-model.md):
   exactly two fixed roles, not a permissions table, with role checks (403) and
   status checks (409) enforced and tested completely separately.
+- [0010 — session invalidation and login throttling](docs/adr/0010-session-invalidation-and-login-throttling.md):
+  a password change invalidates every *other* session by comparing the token's
+  `iat` against `password_changed_at` — no denylist, no session store — plus a
+  per-IP throttle whose one-instance limits are stated rather than hidden.
+- [0011 — invoice document data contract](docs/adr/0011-invoice-document-data-contract.md):
+  the letterhead and bill-to render live so fixing a typo fixes every invoice;
+  the GST rate stays the one snapshotted field, because it decides how much
+  money is owed rather than how the page looks.
 
 ## A few things worth pointing out
 
@@ -146,6 +164,20 @@ you want to see the reasoning, not just the outcome.
   `SELECT ... FOR UPDATE` on the business row (borrowed anyway for payment
   terms and GST settings). It depends on PostgreSQL's default READ COMMITTED
   isolation — the ADR explains why raising it would silently break this.
+- **Failures on identity are told apart by problem type, not just by status.**
+  A deactivated account is a `403` (the token is genuine; the authorisation
+  isn't), a token issued before its owner's last password change is a `401`,
+  and an unreplaced temporary password is a different `403` again. Each
+  carries its own `type` in the Problem Details body, so a UI can decide
+  whether to clear the token or show an inline message without pattern-matching
+  on prose. See [`AccountStateFilter`](src/main/java/com/invoicely/security/AccountStateFilter.java).
+- **The login throttle is honest about being in-memory.** It is a
+  `ConcurrentHashMap` in one process, so two instances would each allow ten
+  attempts and a restart forgives everyone. That limit is written into
+  [`ADR-0010`](docs/adr/0010-session-invalidation-and-login-throttling.md) and
+  the class comment rather than left for someone to discover — the upgrade
+  path is a shared store behind the same class. **For production** this and a
+  managed signing secret are the two things to change first.
 
 ## Testing
 
@@ -155,9 +187,11 @@ precision, and case-insensitive unique indexes are exercised for real. It
 covers: the money and GST math and the status-transition matrix as pure unit
 tests; each controller end to end over MockMvc with real JWTs; the
 maker-checker round trip (draft → submit → reject → resubmit → approve & send
-→ payments → paid); cross-business isolation; and the role checks that
-return 403 for staff attempting owner-only actions. CI (`.github/workflows/ci.yml`)
-runs the same command on every push and pull request.
+→ payments → paid); cross-business isolation; the role checks that return 403
+for staff attempting owner-only actions; and the concurrency cases that only
+a real database can prove — two payments racing to overpay one invoice, and
+two invoices racing for the same number. CI (`.github/workflows/ci.yml`) runs
+the same command on every push and pull request.
 
 ## Project layout
 
@@ -171,7 +205,7 @@ docs/
   Invoice_Product_Scope.md    behaviour, roles, lifecycle, GST rules
   Invoice_Tech_Scope.md       stack, schema, task breakdown
   Invoice_Design_Direction.md Phase 2 UI layers (not yet built)
-  adr/                        the five decision records linked above
+  adr/                        the decision records linked above
 knowledge/    OKF-validated domain concepts (lifecycle, money, roles)
 ```
 

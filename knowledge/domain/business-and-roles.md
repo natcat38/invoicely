@@ -24,11 +24,26 @@ the `biz` claim from the JWT; cross-business access returns 404, never 403.
 # Examples
 
 JWT claims: `sub` (user id), `biz` (business id), `role` — and nothing that can
-change between logins, which is why `active` and `must_change_password` are read
-from the database on every request instead. Owner endpoints carry
-`@PreAuthorize("hasRole('OWNER')")`, and a role violation is 403 while a
-cross-business row is 404. Deactivated staff fail on their next request, not at
-their next login.
+change between logins, which is why `active`, `must_change_password` and
+`password_changed_at` are read from the database on every request instead.
+Owner endpoints carry `@PreAuthorize("hasRole('OWNER')")`, and a role violation
+is 403 while a cross-business row is 404. Deactivated staff fail on their next
+request, not at their next login.
+
+Four ways a request can fail on identity rather than on data, each with its own
+problem type so a UI can tell them apart:
+
+| Situation | Status | Problem type |
+|---|---|---|
+| Account deactivated | 403 | `account-deactivated` |
+| Token predates the account's last password change | 401 | `token-superseded` |
+| Temporary password not yet replaced | 403 | `password-change-required` |
+| Too many failed login attempts from one IP | 429 | `too-many-attempts` |
+
+Deactivation is 403 rather than 401 because the token is genuine — the identity
+is fine, the authorisation is not. A password change invalidates every *other*
+session but not the current one: `POST /auth/change-password` hands back a fresh
+token stamped after the change.
 
 New staff receive a generated temporary password, shown once, and cannot reach
 any endpoint but `POST /auth/change-password` until they replace it.
@@ -39,5 +54,6 @@ any endpoint but `POST /auth/change-password` until they replace it.
 `docs/adr/0001-business-as-ownership-boundary.md` (why cross-business is 404) ·
 `docs/adr/0002-jwt-shape-and-storage.md` (what the token carries, and why so
 little) · `docs/adr/0003-temporary-password-flow.md` (how staff get their first
-credential).
+credential) · `docs/adr/0010-session-invalidation-and-login-throttling.md` (why
+deactivation is 403, and what a password change invalidates).
 Transitions gated by role: [Invoice lifecycle](/domain/invoice-lifecycle.md).
