@@ -1,5 +1,7 @@
 package com.invoicely.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,8 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
  * the API down, which makes it the right thing for a load balancer to poll.
  */
 @RestController
+@Tag(name = "Ping", description = "Unauthenticated liveness check for a load balancer.")
 class PingController {
 
+    @Operation(summary = "Liveness check", description = "No auth, no database — always 200 while the app is up.")
     @GetMapping("/ping")
     Pong ping() {
         return new Pong("ok", Instant.now());

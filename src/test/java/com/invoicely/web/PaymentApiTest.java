@@ -252,6 +252,56 @@ class PaymentApiTest {
                 .andExpect(jsonPath("$[1].note").value("Earlier"));
     }
 
+    @Test
+    @DisplayName("recording a payment against an already-PAID invoice is refused, not accepted as a second payment")
+    void payingAnAlreadyPaidInvoiceIsRejected() throws Exception {
+        Invoice invoice = sentInvoice("INV-2026-0001");
+
+        mockMvc.perform(post("/invoices/" + invoice.getId() + "/payments")
+                        .headers(ownerHeaders())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentBody("1547.80", "BANK_TRANSFER", "Paid in full")))
+                .andExpect(status().isCreated());
+
+        Invoice paid = invoices.findById(invoice.getId()).orElseThrow();
+        assertThat(paid.getStatus()).isEqualTo(InvoiceStatus.PAID);
+
+        // The invoice is now PAID. A further payment — even a nominal one —
+        // must hit PaymentService.record's explicit PAID guard (409), the one
+        // branch of the three-part state check with no coverage at all, not
+        // the balance-exceeded check (400) sitting right above it.
+        mockMvc.perform(post("/invoices/" + invoice.getId() + "/payments")
+                        .headers(ownerHeaders())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentBody("0.01", "CASH", "Should be refused")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("/problems/invoice-already-paid"));
+
+        assertThat(invoices.findById(invoice.getId()).orElseThrow().getPayments()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("a staff token against a draft invoice's payments is 403 for the role, not 409 for the state")
+    void staffCannotRecordPaymentsAgainstADraftInvoiceEither() throws Exception {
+        // draftInvoiceCannotTakeAPayment already proves an owner gets 409
+        // here. A staff token independently fails both the role check (staff
+        // may not touch payments at all) and the state check (a draft cannot
+        // take a payment) — the same role-answers-first precedence
+        // InvoiceLifecycleApiTest.roleIsCheckedBeforeState proves for /send
+        // must hold here too, on PaymentController's own @PreAuthorize.
+        Invoice draft = new Invoice(acme, acmeClient, acmeOwner, "INV-2026-0002",
+                LocalDate.of(2026, 2, 1), LocalDate.of(2026, 3, 3));
+        draft.addLineItem("Work", BigDecimal.ONE, new BigDecimal("100.00"));
+        draft = invoices.saveAndFlush(draft);
+
+        mockMvc.perform(post("/invoices/" + draft.getId() + "/payments")
+                        .headers(TestTokens.bearer(jwtService, acmeStaff))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentBody("50.00", "CASH", null)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("/problems/insufficient-role"));
+    }
+
     /**
      * A SENT invoice matching the Tech Scope §2 worked example: two lines
      * totalling a 1,420.00 subtotal, GST 9% (127.80), total 1,547.80.

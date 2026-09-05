@@ -1,5 +1,7 @@
 # Invoicely
 
+[![CI](https://github.com/natcat38/invoicely/actions/workflows/ci.yml/badge.svg)](https://github.com/natcat38/invoicely/actions/workflows/ci.yml)
+
 Invoicing for a small Singapore business with more than one person touching
 money.
 
@@ -59,8 +61,8 @@ Interactive docs, once the app is running: `http://localhost:8080/swagger-ui.htm
 | Auth | `POST /auth/register` | anyone (creates the business + owner) |
 | Auth | `POST /auth/login` | anyone |
 | Auth | `POST /auth/change-password` | any authenticated user |
-| Clients | `POST /clients`, `GET /clients`, `GET /clients/{id}`, `PUT /clients/{id}`, `DELETE /clients/{id}` | any role |
-| Invoices | `POST /invoices`, `GET /invoices`, `GET /invoices/{id}`, `PUT /invoices/{id}`, `DELETE /invoices/{id}` | any role |
+| Clients | `POST /clients`, `GET /clients` (`archived`, `q`, `page`, `size`), `GET /clients/{id}`, `PUT /clients/{id}`, `DELETE /clients/{id}` | any role |
+| Invoices | `POST /invoices`, `GET /invoices` (`status`, `clientId`, `page`, `size`; defaults to a "needs attention" sort), `GET /invoices/{id}`, `PUT /invoices/{id}`, `DELETE /invoices/{id}` | any role |
 | Lifecycle | `POST /invoices/{id}/submit` | any role (staff's half of maker-checker) |
 | Lifecycle | `POST /invoices/{id}/send` | owner only |
 | Lifecycle | `POST /invoices/{id}/reject` | owner only |
@@ -94,6 +96,19 @@ you want to see the reasoning, not just the outcome.
 - [0005 — Java 25 / Spring Boot 4.1](docs/adr/0005-java-25-spring-boot-4.md):
   the scope docs originally pinned Java 21 / Boot 3, but Spring Initializr had
   already moved on by the time Task 1 started.
+- [0006 — money and GST handling](docs/adr/0006-money-and-gst-handling.md):
+  `BigDecimal`, rounded once at the subtotal rather than per line, with GST
+  snapshotted at send so a later rate change can't rewrite a document a client
+  already holds.
+- [0007 — overdue-status dual mechanism](docs/adr/0007-overdue-status-dual-mechanism.md):
+  a nightly bulk update persists `SENT → OVERDUE` so queries can filter on
+  status directly; a pure read-time check covers the gap before the job runs.
+- [0008 — timezone hardcoded to Singapore](docs/adr/0008-timezone-hardcoded-singapore.md):
+  stated in code rather than via `TZ`, so a correctness rule can't silently
+  depend on deployment configuration someone forgot to set.
+- [0009 — owner/staff role model](docs/adr/0009-owner-staff-role-model.md):
+  exactly two fixed roles, not a permissions table, with role checks (403) and
+  status checks (409) enforced and tested completely separately.
 
 ## A few things worth pointing out
 

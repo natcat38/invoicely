@@ -217,6 +217,33 @@ class InvoiceLifecycleApiTest {
     }
 
     @Test
+    @DisplayName("a brand-new invoice created after GST registration picks up the new rate")
+    void aNewInvoiceAfterRegistrationChargesGst() throws Exception {
+        // anUnregisteredBusinessSendsWithoutGstForGood proves an *existing*
+        // invoice does not retroactively gain GST when the business registers
+        // later. This proves the other half of that toggle: a fresh invoice
+        // created and sent *after* registration does charge it, so the
+        // snapshot logic is not accidentally "sticky" in the other direction
+        // (e.g. via a stale value cached on the business rather than read live
+        // for a not-yet-sent invoice).
+        Invoice beforeRegistration = draft();
+        mockMvc.perform(post("/invoices/" + beforeRegistration.getId() + "/send").headers(as(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gstRate").doesNotExist());
+
+        acme.setGstRegistered(true);
+        acme.setGstRate(new BigDecimal("0.0900"));
+        businesses.saveAndFlush(acme);
+
+        Invoice afterRegistration = draft();
+        mockMvc.perform(post("/invoices/" + afterRegistration.getId() + "/send").headers(as(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gstRate").value(0.0900))
+                .andExpect(jsonPath("$.gst").value(9.00))
+                .andExpect(jsonPath("$.total").value(109.00));
+    }
+
+    @Test
     @DisplayName("an invoice with no lines cannot be sent")
     void anEmptyInvoiceCannotBeSent() throws Exception {
         LocalDate issued = LocalDate.now();

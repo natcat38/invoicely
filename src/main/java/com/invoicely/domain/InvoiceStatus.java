@@ -60,13 +60,4 @@ public enum InvoiceStatus {
     public boolean canTransitionTo(InvoiceStatus target) {
         return ALLOWED.get(this).contains(target);
     }
-
-    /**
-     * Whether the client has this invoice — true for everything from SENT
-     * onwards. Used to decide that its GST rate is now fixed and its line items
-     * are no longer editable.
-     */
-    public boolean isIssued() {
-        return this == SENT || this == OVERDUE || this == PAID;
-    }
 }

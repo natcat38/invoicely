@@ -65,34 +65,19 @@ public class LineItem {
         return id;
     }
 
-    public Invoice getInvoice() {
-        return invoice;
-    }
-
     public String getDescription() {
         return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(BigDecimal quantity) {
-        this.quantity = quantity;
-    }
-
     public BigDecimal getUnitPrice() {
         return unitPrice;
     }
 
-    public void setUnitPrice(BigDecimal unitPrice) {
-        this.unitPrice = unitPrice;
-    }
-
+    /** Zero-based display order — read back by tests proving positions stay dense after a removal. */
     public int getPosition() {
         return position;
     }

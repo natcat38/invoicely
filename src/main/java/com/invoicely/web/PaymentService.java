@@ -57,7 +57,14 @@ public class PaymentService {
      * </ol>
      */
     public PaymentResponse record(Long invoiceId, RecordPaymentRequest request) {
-        Invoice invoice = load(invoiceId);
+        // Locked, not the plain load(): two concurrent payments must not both
+        // read the same pre-payment balance and both pass the "amount fits"
+        // check below. The second request now blocks here until the first
+        // commits, then sees the updated balance instead of a stale one.
+        // Mirrors BusinessRepository.findByIdForUpdate's role in invoice
+        // numbering — see InvoiceRepository.findByIdAndBusinessIdForUpdate.
+        Invoice invoice = invoices.findByIdAndBusinessIdForUpdate(invoiceId, currentRequest.businessId())
+                .orElseThrow(() -> new NotFoundException("Invoice"));
 
         if (!invoice.hasBeenSent()) {
             throw new ConflictException("invoice-not-sent",

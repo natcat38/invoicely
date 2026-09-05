@@ -1,5 +1,6 @@
 package com.invoicely.domain;
 
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,6 +30,21 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     /** Ownership-scoped lookup — see ClientRepository for why. */
     Optional<Invoice> findByIdAndBusinessId(Long id, Long businessId);
+
+    /**
+     * Same lookup as {@link #findByIdAndBusinessId}, but holds a write lock on
+     * the invoice row until the transaction ends — mirrors
+     * {@link BusinessRepository#findByIdForUpdate}'s pattern for invoice
+     * numbering, applied here so two concurrent payments cannot both read the
+     * same pre-payment balance and both approve an amount that only fits once.
+     *
+     * <p>Use this instead of {@link #findByIdAndBusinessId} anywhere the
+     * balance is computed and then acted on in the same transaction —
+     * currently only {@code PaymentService.record}.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Invoice i where i.id = :id and i.business.id = :businessId")
+    Optional<Invoice> findByIdAndBusinessIdForUpdate(@Param("id") Long id, @Param("businessId") Long businessId);
 
     /**
      * Backs invoice numbering: INV-&lt;year&gt;-&lt;seq&gt; must be unique
@@ -69,9 +86,26 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
      * not rest on how a particular Hibernate version handles enum-valued CASE.
      *
      * <p>Both filters are optional: null means "any".
+     *
+     * <p>{@code left join fetch client} loads the client for every row in the
+     * page in this same query — a to-one join, so it cannot multiply rows the
+     * way joining {@code lineItems} or {@code payments} would, which means it
+     * needs no {@code distinct} and does not disturb the page's SQL
+     * {@code LIMIT}/{@code OFFSET}. {@code lineItems} and {@code payments} are
+     * both to-many collections and cannot be join-fetched here without either
+     * multiplying rows across two collections at once ("MultipleBagFetch") or
+     * forcing this whole query into in-memory pagination; instead they are
+     * left lazy and picked up by {@code hibernate.default_batch_fetch_size} in
+     * application.properties, which loads them in a couple of batched queries
+     * across the whole page rather than one query per invoice. Together this
+     * turns {@code InvoiceSummaryResponse.from} walking {@code lineItems}/
+     * {@code payments}/{@code client} per row — up to 3N lazy-load queries per
+     * page — into a small, page-size-independent number of queries (see
+     * domain-audit-raw.md).
      */
-    @Query("""
+    @Query(value = """
             select i from Invoice i
+            left join fetch i.client
             where i.business.id = :businessId
               and (:clientId is null or i.client.id = :clientId)
               and (
@@ -96,6 +130,28 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
                      end,
                      i.createdAt desc,
                      i.id desc
+            """,
+            // A join-fetch query needs its own count query — Spring Data
+            // cannot infer one from a query with a fetch join — otherwise
+            // Page's total-count query would try (and fail) to run the same
+            // joins just to count rows.
+            countQuery = """
+            select count(i) from Invoice i
+            where i.business.id = :businessId
+              and (:clientId is null or i.client.id = :clientId)
+              and (
+                    :status is null
+                 or (:status = com.invoicely.domain.InvoiceStatus.OVERDUE
+                       and (i.status = com.invoicely.domain.InvoiceStatus.OVERDUE
+                            or (i.status = com.invoicely.domain.InvoiceStatus.SENT
+                                and i.dueDate < :today)))
+                 or (:status = com.invoicely.domain.InvoiceStatus.SENT
+                       and i.status = com.invoicely.domain.InvoiceStatus.SENT
+                       and i.dueDate >= :today)
+                 or (:status <> com.invoicely.domain.InvoiceStatus.OVERDUE
+                       and :status <> com.invoicely.domain.InvoiceStatus.SENT
+                       and i.status = :status)
+              )
             """)
     Page<Invoice> findForList(@Param("businessId") Long businessId,
                               @Param("status") InvoiceStatus status,
