@@ -68,6 +68,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
                         // Deliberately open, and cheap, so a load balancer can poll it.
                         .requestMatchers(HttpMethod.GET, "/ping").permitAll()
+                        // The API documentation describes the API; it exposes no
+                        // data of its own, and a reviewer should be able to read
+                        // it without first obtaining a token.
+                        .requestMatchers(HttpMethod.GET,
+                                "/v3/api-docs", "/v3/api-docs/**",
+                                "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 ->
                         oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter())))
