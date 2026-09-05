@@ -11,10 +11,16 @@ import com.invoicely.TestTokens;
 import com.invoicely.TestcontainersConfiguration;
 import com.invoicely.domain.Business;
 import com.invoicely.domain.BusinessRepository;
+import com.invoicely.domain.Client;
+import com.invoicely.domain.ClientRepository;
+import com.invoicely.domain.Invoice;
+import com.invoicely.domain.InvoiceRepository;
 import com.invoicely.domain.Role;
 import com.invoicely.domain.User;
 import com.invoicely.domain.UserRepository;
 import com.invoicely.security.JwtService;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,6 +60,12 @@ class TeamApiTest {
     private UserRepository users;
 
     @Autowired
+    private ClientRepository clients;
+
+    @Autowired
+    private InvoiceRepository invoices;
+
+    @Autowired
     private JwtService jwtService;
 
     @Autowired
@@ -82,6 +94,24 @@ class TeamApiTest {
                 .andExpect(jsonPath("$[1].name").value("Sam Staff"))
                 .andExpect(jsonPath("$[1].role").value("STAFF"))
                 .andExpect(jsonPath("$[1].active").value(true));
+    }
+
+    @Test
+    @DisplayName("a staff member's invoices-created count and last-active date come from their own invoices")
+    void teamAggregatesReflectInvoiceActivity() throws Exception {
+        Client client = clients.save(new Client(acme, "Bright Cafe"));
+        createInvoice(client, staff, "INV-2026-0001");
+        createInvoice(client, staff, "INV-2026-0002");
+
+        mockMvc.perform(get("/team").headers(ownerAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[1].name").value("Sam Staff"))
+                .andExpect(jsonPath("$[1].invoicesCreated").value(2))
+                .andExpect(jsonPath("$[1].lastActive").isNotEmpty())
+                // The owner created nothing in this test, so their aggregates
+                // default rather than crashing on a missing row.
+                .andExpect(jsonPath("$[0].invoicesCreated").value(0))
+                .andExpect(jsonPath("$[0].lastActive").doesNotExist());
     }
 
     @Test
@@ -225,6 +255,18 @@ class TeamApiTest {
     /** Emails are globally unique, so every seeded user needs its own. */
     private String uniqueEmail() {
         return "user-" + UUID.randomUUID() + "@example.test";
+    }
+
+    /**
+     * Saves a draft invoice straight through the repository, attributed to
+     * {@code createdBy} — enough to exercise the invoices-created aggregate
+     * without going through {@code POST /invoices}.
+     */
+    private Invoice createInvoice(Client client, User createdBy, String number) {
+        LocalDate today = LocalDate.now();
+        Invoice invoice = new Invoice(acme, client, createdBy, number, today, today.plusDays(30));
+        invoice.addLineItem("Work", BigDecimal.ONE, new BigDecimal("100.00"));
+        return invoices.saveAndFlush(invoice);
     }
 
     /** Pulls {@code temporaryPassword} out of the create response body without a full JSON parser. */

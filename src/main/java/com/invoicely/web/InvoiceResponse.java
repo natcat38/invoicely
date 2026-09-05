@@ -4,6 +4,7 @@ import com.invoicely.domain.Invoice;
 import com.invoicely.domain.InvoiceStatus;
 import com.invoicely.domain.InvoiceTotals;
 import com.invoicely.domain.LineItem;
+import com.invoicely.domain.OverdueInvoices;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -16,6 +17,12 @@ import java.util.List;
  * {@link InvoiceTotals} — a client should never have to decide how to round.
  * {@code gstRate} is null when the business does not charge GST, which is how
  * the document knows to omit the GST line entirely rather than print 0.00.
+ *
+ * <p>The status is computed rather than read straight off the row. The daily
+ * job that persists SENT to OVERDUE runs once a night, so between midnight and
+ * the job an invoice can be overdue in reality while still stored as SENT.
+ * {@link OverdueInvoices#asOf} reports what is true now; the job makes it true
+ * in the database, so that queries and the dashboard can still filter on it.
  */
 public record InvoiceResponse(
         Long id,
@@ -39,7 +46,7 @@ public record InvoiceResponse(
         return new InvoiceResponse(
                 invoice.getId(),
                 invoice.getNumber(),
-                invoice.getStatus(),
+                OverdueInvoices.asOf(invoice, LocalDate.now()),
                 ClientSummary.from(invoice),
                 invoice.getIssueDate(),
                 invoice.getDueDate(),

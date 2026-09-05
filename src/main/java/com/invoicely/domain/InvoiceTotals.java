@@ -54,15 +54,22 @@ public record InvoiceTotals(
     }
 
     /**
-     * The rate to charge, or null when the business does not charge GST at all.
+     * The rate to charge, or null when no GST applies.
      *
      * <p>Null and zero mean different things here: a business that is not
-     * GST-registered shows no GST line, while a registered business on a 0%
-     * rate shows one reading 0.00. Keeping the rate rather than only the amount
-     * is also what lets the invoice print the "GST 9%" label.
+     * GST-registered shows no GST line at all, while a registered business on a
+     * 0% rate shows one reading 0.00. Keeping the rate rather than only the
+     * amount is also what lets the document print the "GST 9%" label.
+     *
+     * <p>The test is whether the invoice has been <em>sent</em>, not whether a
+     * snapshot happens to be present. Those differ in exactly the case that
+     * matters: a business that was not GST-registered when it sent an invoice
+     * stored no snapshot, and if it registers later, falling back to the live
+     * setting would grow a GST line on a document the client already has. Once
+     * sent, the snapshot is the whole answer — including when it is null.
      */
     private static BigDecimal applicableGstRate(Invoice invoice) {
-        if (invoice.getGstRateSnapshot() != null) {
+        if (invoice.hasBeenSent()) {
             return invoice.getGstRateSnapshot();
         }
         Business business = invoice.getBusiness();

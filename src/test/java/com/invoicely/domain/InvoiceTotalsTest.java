@@ -3,6 +3,7 @@ package com.invoicely.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -76,8 +77,11 @@ class InvoiceTotalsTest {
         Invoice invoice = invoiceFor(business);
         invoice.addLineItem("Consulting", new BigDecimal("1"), new BigDecimal("1000.00"));
 
-        // The invoice went out at 9%.
+        // The invoice went out at 9%. sentAt is what marks it as issued — the
+        // snapshot alone is not enough, precisely so that an unregistered
+        // business (which snapshots null) is still treated as having sent.
         invoice.setGstRateSnapshot(new BigDecimal("0.0900"));
+        invoice.setSentAt(Instant.now());
         invoice.setStatus(InvoiceStatus.SENT);
         // The business later re-registers at a different rate.
         business.setGstRate(new BigDecimal("0.1100"));

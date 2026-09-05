@@ -103,7 +103,8 @@ public class InvoiceService {
      */
     @Transactional(readOnly = true)
     public Page<InvoiceSummaryResponse> list(InvoiceStatus status, Long clientId, Pageable pageable) {
-        return invoices.findForList(currentRequest.businessId(), status, clientId, pageable)
+        return invoices.findForList(
+                        currentRequest.businessId(), status, clientId, LocalDate.now(), pageable)
                 .map(InvoiceSummaryResponse::from);
     }
 
