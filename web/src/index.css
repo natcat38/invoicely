@@ -1,0 +1,234 @@
+/*
+ * Every @import has to come first — that is a CSS rule, not a Tailwind one,
+ * and a stylesheet with an @import after a rule silently drops it.
+ */
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+@import "tw-animate-css";
+
+/*
+ * Fonts are self-hosted through Fontsource rather than fetched from Google at
+ * runtime: one less third party in the request path, no layout shift waiting
+ * on someone else's CDN, and the app still renders offline. Only the weights
+ * actually used are imported — every extra weight is a real download.
+ *
+ * shadcn's initialiser added Geist and pointed --font-sans at it. That is its
+ * default, not our decision: the Design Direction picked Inter, so Geist is
+ * gone and --font-sans is set below.
+ */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * The design tokens from docs/Invoice_Design_Direction.md.
+ *
+ * Tailwind 4 is configured in CSS rather than a JavaScript config file, and
+ * `@theme` is the mechanism: each custom property declared here both exists as
+ * a real CSS variable *and* generates the matching Tailwind utilities. So
+ * `--color-ink: #1b2733` gives us `text-ink` and `bg-ink` in markup, and
+ * `var(--color-ink)` in hand-written CSS for the document layer. One
+ * definition, two ways to reach it.
+ *
+ * The two layers are deliberately separate palettes: the app is quiet SaaS
+ * chrome, the document is paper and ink. A colour from one should never appear
+ * in the other; that contrast is the product's signature, and it survives only
+ * if the names stay honest.
+ */
+@theme {
+  /* ---- App layer (variant B): the SaaS workspace around the document ---- */
+  --color-app-bg: #f8f9fb;
+  --color-app-surface: #ffffff;
+  --color-app-border: #e2e8f0;
+  --color-app-text: #0f172a;
+  --color-app-muted: #64748b;
+  --color-app-sidebar: #0f172a;
+  --color-app-accent: #4f46e5;
+
+  /* Status badges in the app chrome. DRAFT and SENT stay quiet outlines — they
+     get no fill of their own, because an invoice that has not been paid and
+     has not missed its date has no news to report. */
+  --color-app-warning: #b45309;
+  --color-app-warning-bg: #fef3c7;
+  --color-app-paid: #15803d;
+  --color-app-paid-bg: #dcfce7;
+
+  /* ---- Document layer (variant A): the invoice as the client sees it ---- */
+  --color-paper: #ffffff;
+  --color-paper-rule: #d6dee6;
+  --color-ink: #1b2733;
+  --color-ink-pen: #1e5aa8;
+  --color-stamp-overdue: #c0392b;
+  --color-stamp-paid: #1e7b4f;
+
+  /* ---- Type ----
+     Inter throughout the app; Fraunces for the invoice number only; JetBrains
+     Mono with tabular figures for every amount, in both layers, so columns of
+     money line up digit for digit. Each stack names real fallbacks: a font that
+     fails to load must degrade to something readable, not to whatever the
+     browser happens to pick. */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-serif: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas,
+    monospace;
+}
+
+/*
+ * shadcn/ui components are written against semantic names — bg-background,
+ * text-muted-foreground, bg-primary — rather than against our palette. This
+ * block is the bridge: it keeps shadcn's vocabulary (so a component copied
+ * from the registry works unmodified) while :root below points each name at a
+ * Design Direction colour. That is what stops us from maintaining two
+ * palettes that slowly disagree.
+ */
+@theme inline {
+  --font-heading: var(--font-sans);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+/*
+ * shadcn's semantic names, each resolved to a Design Direction colour rather
+ * than to the neutral greys its initialiser ships with. The initialiser's
+ * --primary was near-black; ours is the indigo the Design Direction names for
+ * primary actions, so a shadcn <Button> is the right colour with no override
+ * at the call site.
+ */
+:root {
+  --radius: 0.5rem;
+
+  --background: var(--color-app-bg);
+  --foreground: var(--color-app-text);
+
+  /* Cards and popovers are the surface colour: white panels on the off-white
+     page, which is what gives the app layer its quiet depth. */
+  --card: var(--color-app-surface);
+  --card-foreground: var(--color-app-text);
+  --popover: var(--color-app-surface);
+  --popover-foreground: var(--color-app-text);
+
+  --primary: var(--color-app-accent);
+  --primary-foreground: #ffffff;
+
+  --secondary: #eef1f6;
+  --secondary-foreground: var(--color-app-text);
+  --muted: #eef1f6;
+  --muted-foreground: var(--color-app-muted);
+  --accent: #eef1f6;
+  --accent-foreground: var(--color-app-text);
+
+  /* The document layer's stamp red, reused for destructive actions — the one
+     deliberate crossover, because "this is dangerous" and "this is overdue"
+     are the same warning in the same product. */
+  --destructive: var(--color-stamp-overdue);
+
+  --border: var(--color-app-border);
+  --input: var(--color-app-border);
+  --ring: var(--color-app-accent);
+
+  --sidebar: var(--color-app-sidebar);
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: var(--color-app-accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: var(--color-app-accent);
+}
+
+/*
+ * No `.dark` block on purpose. The Design Direction defers the dark-mode app
+ * theme to polish, and shipping shadcn's default dark greys would mean a theme
+ * nobody designed — quietly contradicting the doc. The `dark` variant above
+ * still exists, so adding one later means filling in this one block rather
+ * than touching any component. (The private roadmap's M7 line lists dark mode;
+ * the Design Direction is the later and more specific of the two, and repo
+ * docs are the source of truth.)
+ */
+
+@layer base {
+  * {
+    /* Tailwind 4 defaults a bare `border` to currentColor. shadcn components
+       assume the themed border instead, so it is set once here rather than
+       spelled out on every component. */
+    @apply border-border;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /*
+   * Every figure in the product is tabular: amounts in a ledger column have to
+   * align on the decimal point, and a proportional font makes "1" narrower
+   * than "8" so they do not. Applied wherever the mono stack is used, because
+   * there is no case in this app where a number should be proportional.
+   */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * A visible focus ring on anything keyboard-reachable — part of the Design
+   * Direction's quality floor. :focus-visible rather than :focus, so a mouse
+   * click does not leave a ring behind while Tab always does.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 2px;
+  }
+
+  /*
+   * The Design Direction allows exactly one motion moment (the PAID stamp
+   * pressing onto the document) and asks that it respect this preference.
+   * Honouring it globally means no future animation can forget to.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

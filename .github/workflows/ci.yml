@@ -15,3 +15,29 @@ jobs:
           cache: maven
       # Testcontainers uses the Docker daemon that GitHub runners already provide.
       - run: ./mvnw --batch-mode verify
+
+  # The frontend is a separate job rather than another step in `verify`: it
+  # shares nothing with the API build, so running the two in parallel keeps the
+  # slower of them — not their sum — as the time to a red or green tick. Both
+  # are required checks on main.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # `npm ci` rather than `npm install`: it installs exactly the versions in
+      # the lockfile and fails if the lockfile and package.json disagree, so CI
+      # cannot quietly test a different dependency tree than a developer has.
+      - run: npm ci
+      - run: npm run lint
+      # `npm run build` is `tsc -b && vite build`, so this is the typecheck and
+      # the production bundle in one command. A type error fails the build,
+      # which is the point — nothing here is checked at runtime.
+      - run: npm run build
