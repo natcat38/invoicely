@@ -202,8 +202,7 @@
    * than "8" so they do not. Applied wherever the mono stack is used, because
    * there is no case in this app where a number should be proportional.
    */
-  .font-mono,
-  [class*="font-mono"] {
+  .font-mono {
     font-variant-numeric: tabular-nums;
   }
 

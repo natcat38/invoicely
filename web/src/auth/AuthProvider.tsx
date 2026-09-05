@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "@/lib/api";
 import type { AuthResponse, MeResponse } from "@/lib/types";
 import {
@@ -53,11 +54,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [restoring, setRestoring] = useState(() => readStoredToken() !== null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
 
+  const queryClient = useQueryClient();
+
   const clearSession = useCallback(() => {
     writeStoredToken(null);
     setSession(null);
     setMustChangePassword(false);
-  }, []);
+    // Throw away every cached response as well as the token. TanStack Query
+    // keys by query, not by user, so without this the next person to sign in
+    // on this browser would be served the previous user's cached clients and
+    // invoices until each query refetched — a different business's data on
+    // screen, which is the one thing ADR-0001 exists to prevent. It costs
+    // nothing today (no screen fetches yet) and is easy to forget once Task 8
+    // adds the queries that would make it visible.
+    queryClient.clear();
+  }, [queryClient]);
 
   const acceptToken = useCallback((response: AuthResponse) => {
     writeStoredToken(response.token);
@@ -152,7 +163,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register,
       changePassword,
       signOut: clearSession,
-      onAuthenticationLost: clearSession,
     }),
     [session, restoring, mustChangePassword, signIn, register, changePassword, clearSession],
   );

@@ -18,5 +18,10 @@ export default defineConfig({
     // configuration during development and let it break unnoticed in
     // production, where the two really are on different origins.
     port: 5173,
+    // Fail loudly if 5173 is taken instead of quietly moving to 5174. The API
+    // allows this exact origin, so a silently different port turns every
+    // request into an opaque CORS failure in the browser console — a much
+    // harder thing to diagnose than "port already in use".
+    strictPort: true,
   },
 });

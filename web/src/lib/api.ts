@@ -9,6 +9,9 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
+/** One invalid field, exactly as `GlobalExceptionHandler.FieldProblem` sends it. */
+export type FieldError = { field: string; message: string };
+
 /**
  * A failed request, carrying the parts of RFC 9457 Problem Details the UI
  * actually branches on.
@@ -25,8 +28,15 @@ export class ApiError extends Error {
   readonly status: number;
   /** The trailing segment of the problem type, e.g. `token-superseded`. */
   readonly problemType: string | null;
-  /** Field-level validation messages, when the API sent any. */
-  readonly fieldErrors: Record<string, string>;
+  /**
+   * Field-level validation messages, when the API sent any.
+   *
+   * A list, not a map, because that is what the API sends:
+   * `GlobalExceptionHandler` writes `errors` as an array of
+   * `{ field, message }` records, sorted so responses are stable. One field
+   * can therefore appear more than once, which a map could not represent.
+   */
+  readonly fieldErrors: FieldError[];
   /** Seconds to wait, from `Retry-After` — only ever set on a 429. */
   readonly retryAfterSeconds: number | null;
 
@@ -34,7 +44,7 @@ export class ApiError extends Error {
     status: number,
     detail: string,
     problemType: string | null,
-    fieldErrors: Record<string, string> = {},
+    fieldErrors: FieldError[] = [],
     retryAfterSeconds: number | null = null,
   ) {
     super(detail);
@@ -73,7 +83,7 @@ type ProblemDetails = {
   detail?: string;
   title?: string;
   type?: string;
-  errors?: Record<string, string>;
+  errors?: FieldError[];
 };
 
 /** `"/problems/token-superseded"` → `"token-superseded"`. */
@@ -81,6 +91,22 @@ function problemTypeOf(type: string | undefined): string | null {
   if (!type || type === "about:blank") return null;
   const lastSlash = type.lastIndexOf("/");
   return lastSlash === -1 ? type : type.slice(lastSlash + 1);
+}
+
+/**
+ * `Retry-After` as a number of seconds, or null if it is not one.
+ *
+ * RFC 9110 allows the header to be either a delay in seconds or an HTTP date,
+ * and `Number("Wed, 21 Oct 2026 07:28:00 GMT")` is `NaN`. Passing that through
+ * would surface to the user as "try again in about NaN minutes", so anything
+ * that is not a plain non-negative number is treated as absent — the caller
+ * already has a sensible message for that case. Our own API always sends
+ * seconds; this guards against a proxy rewriting it.
+ */
+function retryAfterSeconds(header: string | null): number | null {
+  if (header === null) return null;
+  const seconds = Number(header);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
 }
 
 export type RequestOptions = {
@@ -145,8 +171,11 @@ export async function api<T>(
       response.status,
       problem.detail ?? problem.title ?? `Request failed (${response.status}).`,
       problemTypeOf(problem.type),
-      problem.errors ?? {},
-      retryAfter ? Number(retryAfter) : null,
+      // Defended rather than trusted: a proxy or a future handler could send
+      // something that is not a list, and mapping over a non-array would take
+      // the whole screen down with it.
+      Array.isArray(problem.errors) ? problem.errors : [],
+      retryAfterSeconds(retryAfter),
     );
   }
 

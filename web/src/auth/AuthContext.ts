@@ -22,9 +22,13 @@ export type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /**
+   * Clears the token and every cached response. Also the right thing to call
+   * when the API rejects a token mid-session (`ApiError.requiresReauthentication`)
+   * — signing out is exactly what that situation calls for, so there is no
+   * second method for it.
+   */
   signOut: () => void;
-  /** Called by data hooks when the API says this token is finished. */
-  onAuthenticationLost: () => void;
 };
 
 export type RegisterInput = {

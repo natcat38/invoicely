@@ -20,11 +20,15 @@ export function FormError({ error }: { error: ApiError | null }) {
         <p>{messageFor(error)}</p>
         {/* Bean Validation failures name the field they came from. Listing
             them beats a single vague "check your input", and the API has
-            already written each message as a sentence. */}
-        {Object.keys(error.fieldErrors).length > 0 ? (
+            already written each message as a sentence.
+
+            The key includes the message because one field can fail two rules
+            at once (a password can be both too short and blank), and the API
+            sends one entry per rule. */}
+        {error.fieldErrors.length > 0 ? (
           <ul className="mt-2 list-disc space-y-1 pl-4">
-            {Object.entries(error.fieldErrors).map(([field, message]) => (
-              <li key={field}>{message}</li>
+            {error.fieldErrors.map(({ field, message }) => (
+              <li key={`${field}:${message}`}>{message}</li>
             ))}
           </ul>
         ) : null}

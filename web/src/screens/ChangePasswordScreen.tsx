@@ -99,7 +99,7 @@ export function ChangePasswordScreen() {
             value={newPassword}
             onChange={(event) => setNewPassword(event.target.value)}
           />
-          <p className="text-xs text-app-muted">At least 8 characters.</p>
+          <p className="text-xs text-app-muted">Between 8 and 72 characters.</p>
         </div>
 
         <div className="space-y-2">
@@ -112,7 +112,14 @@ export function ChangePasswordScreen() {
             aria-invalid={mismatch}
             aria-describedby={mismatch ? "confirmation-error" : undefined}
             value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
+            onChange={(event) => {
+              setConfirmation(event.target.value);
+              // Clear the mismatch as soon as they start correcting it.
+              // Leaving it up until the next submit means telling someone
+              // their passwords do not match while they are in the middle of
+              // making them match.
+              setMismatch(false);
+            }}
           />
           {mismatch ? (
             <p id="confirmation-error" className="text-xs text-destructive">

@@ -106,8 +106,9 @@ export function RegisterScreen() {
             onChange={update("password")}
           />
           {/* The API's rule, stated up front rather than discovered through a
-              rejected form. Eight characters, no composition rules. */}
-          <p className="text-xs text-app-muted">At least 8 characters.</p>
+              rejected form. No composition rules; the 72-character ceiling is
+              BCrypt's, not a policy. */}
+          <p className="text-xs text-app-muted">Between 8 and 72 characters.</p>
         </div>
 
         <Button type="submit" className="w-full" disabled={submitting}>
