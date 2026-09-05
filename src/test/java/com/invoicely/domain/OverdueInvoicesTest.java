@@ -57,6 +57,7 @@ class OverdueInvoicesTest {
     @Test
     @DisplayName("a SENT invoice due yesterday flips to OVERDUE")
     void sentInvoiceDueYesterdayFlipsToOverdue() {
+        drainPreExistingOverdue();
         Invoice invoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0001",
                 LocalDate.now().minusDays(1), InvoiceStatus.SENT);
         entityManager.persist(invoice);
@@ -72,6 +73,7 @@ class OverdueInvoicesTest {
     @Test
     @DisplayName("a SENT invoice due today is not touched — overdue means strictly past due")
     void sentInvoiceDueTodayIsNotOverdue() {
+        drainPreExistingOverdue();
         Invoice invoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0002",
                 LocalDate.now(), InvoiceStatus.SENT);
         entityManager.persist(invoice);
@@ -129,6 +131,7 @@ class OverdueInvoicesTest {
     @Test
     @DisplayName("the job runs across every business, not just one")
     void jobSpansBusinesses() {
+        drainPreExistingOverdue();
         Invoice acmeInvoice = invoiceDueOn(acme, acmeClient, acmeOwner, "INV-2026-0006",
                 LocalDate.now().minusDays(1), InvoiceStatus.SENT);
         entityManager.persist(acmeInvoice);
@@ -190,5 +193,21 @@ class OverdueInvoicesTest {
 
     private Invoice reload(Invoice invoice) {
         return entityManager.getEntityManager().find(Invoice.class, invoice.getId());
+    }
+
+    /**
+     * Flips anything already overdue, so the counts asserted below describe
+     * only the invoices this test just created.
+     *
+     * <p>The job deliberately spans every business — it has no caller and so no
+     * business to scope to — and JourneyTest commits real invoices into this
+     * same database rather than rolling back. Asserting a raw count would
+     * therefore be asserting something this test does not control. Draining
+     * first makes the measurement a delta. It is safe because @DataJpaTest
+     * rolls the whole test back afterwards.
+     */
+    private void drainPreExistingOverdue() {
+        overdueInvoices.flipSentInvoicesPastDueToOverdue();
+        entityManager.clear();
     }
 }
