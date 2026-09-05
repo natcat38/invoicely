@@ -29,5 +29,18 @@ public record ClientRequest(
         // rather than rejecting a real one on an edge case.
         @Size(max = 20) String uen,
         @Size(max = 2000) String paymentNotes,
-        boolean archived) {
+
+        /**
+         * Boxed, and optional. Creating a client with
+         * {@code {"name": "Bright Cafe"}} is the obvious request to send, and a
+         * primitive here made that a 400 — Jackson cannot bind a missing value
+         * to a {@code boolean}, and the caller got "Failed to read request"
+         * with no clue which field it meant.
+         *
+         * <p>Absent means false. On create that is the only possibility — a
+         * client is never born archived — and on PUT it follows from the verb:
+         * a full replace that does not say "archived" is describing a client
+         * that is not archived.
+         */
+        Boolean archived) {
 }

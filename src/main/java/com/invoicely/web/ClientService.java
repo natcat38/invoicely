@@ -78,7 +78,7 @@ public class ClientService {
         Client client = load(id);
         client.setName(request.name());
         applyOptionalFields(client, request);
-        client.setArchived(request.archived());
+        client.setArchived(Boolean.TRUE.equals(request.archived()));
         // No save() call: client is managed inside this transaction, so
         // Hibernate writes the changes back at commit.
         return ClientResponse.from(client);

@@ -56,6 +56,16 @@
 			<scope>runtime</scope>
 		</dependency>
 		<!--
+			Serves the OpenAPI document and Swagger UI. The 3.x line is the one
+			built for Spring Boot 4; springdoc 2.x targets Boot 3 and will not
+			start here. Not managed by the Boot parent, so the version is pinned.
+		-->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>3.1.0</version>
+		</dependency>
+		<!--
 			Spring Boot 4 split the old catch-all starters: web is now
 			spring-boot-starter-webmvc, and every starter has a matching
 			"-test" companion instead of one spring-boot-starter-test.
