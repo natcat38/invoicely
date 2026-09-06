@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ApiError } from "@/lib/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -11,10 +12,30 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
  * exceptions are handled below, where the raw detail would be unhelpful.
  */
 export function FormError({ error }: { error: ApiError | null }) {
+  const container = useRef<HTMLDivElement>(null);
+
+  /**
+   * Moves focus to the summary when an error appears.
+   *
+   * <p>Without it, a failed submit leaves focus on the submit button at the
+   * bottom of a form whose error is at the top — a sighted user sees the red
+   * box, and a screen-reader user is told nothing they can navigate to. The
+   * container is `tabIndex={-1}` so it can receive focus programmatically
+   * without joining the tab order afterwards.
+   *
+   * <p>Keyed on the message rather than on `error` itself: two consecutive
+   * failed submits create two different `ApiError` objects, so depending on
+   * the object would re-focus on every attempt, while depending on the text
+   * re-announces only when what is wrong actually changes.
+   */
+  useEffect(() => {
+    if (error) container.current?.focus();
+  }, [error?.message, error]);
+
   if (!error) return null;
 
   return (
-    <Alert variant="destructive" role="alert">
+    <Alert ref={container} tabIndex={-1} variant="destructive" role="alert">
       <AlertTitle>{titleFor(error)}</AlertTitle>
       <AlertDescription>
         <p>{messageFor(error)}</p>

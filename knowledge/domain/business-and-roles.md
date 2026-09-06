@@ -21,6 +21,10 @@ the `biz` claim from the JWT; cross-business access returns 404, never 403.
 | Dashboard & revenue | ✗ | ✅ |
 | Team & business/GST settings | ✗ | ✅ |
 
+Staff *read* the GST registration and rate (carried on the signed-in identity,
+`GET /auth/me`) so a draft invoice can show a correct GST line before it is
+saved; only the owner may change them.
+
 # Examples
 
 JWT claims: `sub` (user id), `biz` (business id), `role` — and nothing that can

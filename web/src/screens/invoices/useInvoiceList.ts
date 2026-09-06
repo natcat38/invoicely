@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { useApiQuery, keys } from "@/lib/hooks";
 import type { Client, InvoiceStatus, InvoiceSummary, Page } from "@/lib/types";
 
@@ -38,7 +39,26 @@ export const STATUS_FILTERS: StatusFilter[] = [
  * has as many pages as "All".
  */
 export function useInvoiceList() {
-  const [status, setStatusState] = useState<StatusFilter>("ALL");
+  /**
+   * The status filter lives in the URL, not in component state.
+   *
+   * <p>Two things need that. The dashboard links straight to the approval
+   * queue (`/invoices?status=PENDING_APPROVAL`), and a link that silently
+   * lands on the unfiltered list would be worse than no link. And a filtered
+   * view becomes something the owner can bookmark or send to someone, which
+   * a `useState` filter can never be.
+   *
+   * <p>An unrecognised value in the URL falls back to "ALL" rather than being
+   * passed through to the API, so a hand-edited or stale link degrades to the
+   * full list instead of a 400.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusParam = searchParams.get("status");
+  const status: StatusFilter =
+    statusParam !== null && (STATUS_FILTERS as string[]).includes(statusParam)
+      ? (statusParam as StatusFilter)
+      : "ALL";
+
   const [clientId, setClientIdState] = useState<number | null>(null);
   const [page, setPage] = useState(0);
 
@@ -64,7 +84,17 @@ export function useInvoiceList() {
   );
 
   function setStatus(next: StatusFilter) {
-    setStatusState(next);
+    // `replace` so that clicking through five tabs does not leave five entries
+    // in the back stack between the user and the page they arrived from.
+    setSearchParams(
+      (current) => {
+        const updated = new URLSearchParams(current);
+        if (next === "ALL") updated.delete("status");
+        else updated.set("status", next);
+        return updated;
+      },
+      { replace: true },
+    );
     setPage(0);
   }
 
@@ -76,7 +106,7 @@ export function useInvoiceList() {
   const hasFilters = status !== "ALL" || clientId !== null;
 
   function clearFilters() {
-    setStatusState("ALL");
+    setStatus("ALL");
     setClientIdState(null);
     setPage(0);
   }

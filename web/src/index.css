@@ -129,6 +129,15 @@
  * at the call site.
  */
 :root {
+  /*
+   * Declared explicitly rather than left to the browser. There is no dark
+   * theme yet (see the note below), so this tells the browser to render its
+   * own furniture - form controls, scrollbars, the caret - in light form
+   * instead of guessing from the OS setting and producing dark native
+   * widgets on a light page.
+   */
+  color-scheme: light;
+
   --radius: 0.5rem;
 
   --background: var(--color-app-bg);
@@ -216,6 +225,30 @@
 
   html {
     @apply font-sans;
+  }
+
+  /*
+   * Removes the ~300ms delay browsers add before firing a click on touch,
+   * while keeping pinch-zoom - which is why this is not `touch-action: none`.
+   * Applied to controls only; text still selects normally.
+   */
+  button,
+  a,
+  [role="button"],
+  label,
+  summary {
+    touch-action: manipulation;
+  }
+
+  /*
+   * Headings wrap into even lines rather than leaving one orphaned word on
+   * the last line. Cheap, and it is most visible on the short two- and
+   * three-word titles this app is full of.
+   */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
 
   body {

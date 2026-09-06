@@ -111,10 +111,10 @@ function Builder({ existing }: { existing?: Invoice }) {
   );
 
   /**
-   * The business's own settings, for the preview's GST line and the default
-   * due date. Owner-only on the API, so staff simply do not get a GST line in
-   * the preview until the draft is saved and the server answers with the real
-   * figures — a small, honest gap rather than a guessed rate on screen.
+   * The business's settings, for the default due date. Owner-only on the API,
+   * so staff do not get it — and for them the due date is simply left empty,
+   * which the server then fills in from the same payment terms. The GST rate
+   * no longer comes from here (see `gstRate` below).
    */
   const settings = useApiQuery<SettingsResponse>(["settings"], "/settings", { enabled: isOwner });
 
@@ -134,10 +134,23 @@ function Builder({ existing }: { existing?: Invoice }) {
       : "";
   const effectiveDueDate = dueDate || defaultDueDate;
 
+  /**
+   * The rate the preview should show.
+   *
+   * <p>For a draft that already exists, the API has already worked this out
+   * and `gstRate` is its answer. For one being typed for the first time it
+   * comes from the session, which carries the business's live setting for
+   * every member — staff included, who cannot read `/settings` at all. Before
+   * that field existed, a staff member saw a preview with no GST line and
+   * then a saved invoice with one.
+   *
+   * <p>Null rather than zero when the business is not registered: the
+   * document omits the line entirely rather than printing "GST 0.00".
+   */
   const gstRate = existing
     ? existing.gstRate
-    : settings.data?.gstRegistered
-      ? settings.data.gstRate
+    : session!.user.businessGstRegistered
+      ? session!.user.businessGstRate
       : null;
 
   const totals = useMemo(() => previewTotals(lines, gstRate), [lines, gstRate]);
@@ -325,9 +338,13 @@ function Builder({ existing }: { existing?: Invoice }) {
               dueDate: effectiveDueDate || issueDate || todayInSingapore(),
               business: existing?.business ?? {
                 name: session!.user.businessName,
+                // Address and UEN are owner-only, so a staff member's preview
+                // shows a thinner letterhead than the saved invoice will. That
+                // is cosmetic and self-corrects on save, unlike the GST line,
+                // which changes the figures and so is read from the session.
                 address: settings.data?.address ?? null,
                 uen: settings.data?.uen ?? null,
-                gstRegistered: settings.data?.gstRegistered ?? false,
+                gstRegistered: session!.user.businessGstRegistered,
               },
               client: selectedClient
                 ? {

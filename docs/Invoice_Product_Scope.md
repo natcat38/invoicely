@@ -54,6 +54,12 @@ layer per the Design Direction).
 | Dashboard / revenue figures | ❌ | ✅ |
 | Manage staff accounts, business & GST settings | ❌ | ✅ |
 
+Staff **read** the business's GST registration and rate (they arrive with the
+signed-in identity), so the invoice builder can show a correct GST line while
+a draft is still being typed. Only the owner can change them. Seeing what the
+business charges is not the same as setting it, and staff already see the
+applied rate on every invoice they open.
+
 ## 4. Invoice Lifecycle
 
 States: `DRAFT → PENDING_APPROVAL → SENT → (OVERDUE) → PAID`

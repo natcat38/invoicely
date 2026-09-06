@@ -73,6 +73,31 @@ export function date(isoDate: string): string {
   return `${day} ${MONTHS[month - 1]} ${year}`;
 }
 
+/**
+ * A timestamp — an `Instant` from the API, like `2026-09-06T05:12:33.482Z` —
+ * as the Singapore calendar date it fell on.
+ *
+ * <p>Separate from {@link date} and not interchangeable with it. `date` takes
+ * a `LocalDate` (`2026-09-06`) and splits it by hand precisely so that no
+ * timezone conversion happens; feeding it a full timestamp gives
+ * `Number("06T05:12:33.482Z")`, which is `NaN`, and prints "NaN Sep 2026".
+ * A timestamp is the opposite case: it is a real moment, so it *must* be
+ * converted, and Asia/Singapore is the business day everything else in this
+ * product is measured in (ADR-0008).
+ */
+export function dateOfInstant(iso: string): string {
+  // Converted to a Singapore calendar date first, then handed to `date` so
+  // both render through the same month table. Formatting it directly with
+  // Intl would work but spells September "Sept" under en-SG, and the same
+  // product showing "6 Sept 2026" on the Team page and "6 Sep 2026" on an
+  // invoice is the kind of small inconsistency nobody can unsee.
+  // `en-CA` is used only because it formats as yyyy-mm-dd.
+  const singaporeDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Singapore",
+  }).format(new Date(iso));
+  return date(singaporeDate);
+}
+
 /** Today in Singapore, as the `yyyy-mm-dd` an `<input type="date">` expects. */
 export function todayInSingapore(): string {
   // `en-CA` formats as yyyy-mm-dd, which is exactly the input's wire format —

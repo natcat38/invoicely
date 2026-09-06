@@ -4,9 +4,11 @@ import { useAuth } from "@/auth/useAuth";
 import { AppShell } from "@/shell/AppShell";
 import { ChangePasswordScreen } from "@/screens/ChangePasswordScreen";
 import { LoginScreen } from "@/screens/LoginScreen";
-import { PlaceholderScreen } from "@/screens/PlaceholderScreen";
 import { RegisterScreen } from "@/screens/RegisterScreen";
 import { ClientsScreen } from "@/screens/clients/ClientsScreen";
+import { DashboardScreen } from "@/screens/dashboard/DashboardScreen";
+import { SettingsScreen } from "@/screens/settings/SettingsScreen";
+import { TeamScreen } from "@/screens/team/TeamScreen";
 import { InvoiceBuilderScreen } from "@/screens/invoices/InvoiceBuilderScreen";
 import { InvoiceDetailScreen } from "@/screens/invoices/InvoiceDetailScreen";
 import { InvoiceListScreen } from "@/screens/invoices/InvoiceListScreen";
@@ -48,9 +50,9 @@ export function App() {
           <Route path="/clients" element={<ClientsScreen />} />
 
           <Route element={<RequireAuth role="OWNER" />}>
-            <Route path="/dashboard" element={<PlaceholderScreen title="Dashboard" task="Task 9" />} />
-            <Route path="/team" element={<PlaceholderScreen title="Team" task="Task 9" />} />
-            <Route path="/settings" element={<PlaceholderScreen title="Settings" task="Task 9" />} />
+            <Route path="/dashboard" element={<DashboardScreen />} />
+            <Route path="/team" element={<TeamScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
           </Route>
         </Route>
       </Route>
