@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
@@ -169,7 +170,7 @@ public class SecurityConfig {
      * the property.
      */
     @Bean
-    SecretKey jwtSigningKey(SecurityProperties properties) {
+    SecretKey jwtSigningKey(SecurityProperties properties, Environment environment) {
         String configured = properties.secret();
         if (configured != null && !configured.isBlank()) {
             byte[] keyBytes = configured.getBytes(StandardCharsets.UTF_8);
@@ -178,6 +179,19 @@ public class SecurityConfig {
                         "invoicely.security.secret must be at least 32 characters for HS256.");
             }
             return new SecretKeySpec(keyBytes, "HmacSHA256");
+        }
+
+        // Refusing to start beats starting badly. A deployment that generates
+        // its key at boot signs tokens nothing else can verify: every restart
+        // silently logs everyone out, and a second instance rejects the first
+        // one's tokens outright. Both look like intermittent auth bugs rather
+        // than the missing environment variable they actually are, so the
+        // `prod` profile turns that into a failure at startup, where the
+        // message is right next to the cause.
+        if (environment.matchesProfiles("prod")) {
+            throw new IllegalStateException(
+                    "INVOICELY_SECURITY_SECRET must be set when running with the prod profile. "
+                            + "Generate one with: openssl rand -base64 48");
         }
 
         log.warn("No invoicely.security.secret configured, so a random signing key was generated. "

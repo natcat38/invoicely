@@ -1,0 +1,14 @@
+# Single-page-app fallback for Netlify and Cloudflare Pages.
+#
+# The router runs in the browser, so the server has never heard of /invoices/2.
+# Without this it answers 404 on a hard refresh or a shared deep link — which
+# includes the dashboard's link to the approval queue. Serving index.html for
+# any unmatched path lets the app boot and route the URL itself.
+#
+# 200, not 301: the browser must keep the URL it asked for, or the router would
+# only ever see "/".
+#
+# Vercel wants a "rewrites" entry in vercel.json and Render has a Redirect/
+# Rewrite rule in its dashboard; both say the same thing. See the deploy
+# section of the README.
+/*    /index.html   200

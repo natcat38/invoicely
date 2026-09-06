@@ -1,0 +1,15 @@
+# Everything the image does not need. Keeping the build context small speeds
+# every build, and it is also what stops a stray local file — an .env, a
+# database dump — from being copied into a published image by accident.
+target/
+web/
+reports/
+docs/
+knowledge/
+.git/
+.github/
+.githooks/
+*.md
+compose.yaml
+.idea/
+.vscode/
