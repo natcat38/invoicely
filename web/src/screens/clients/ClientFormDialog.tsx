@@ -15,7 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateClient, useUpdateClient, type ClientInput } from "./useClients";
+import {
+  useCreateClient,
+  useUpdateClient,
+  type ClientInput,
+} from "./useClients";
 
 const BLANK_FORM: ClientInput = {
   name: "",
@@ -64,7 +68,13 @@ export function ClientFormDialog({
   );
 }
 
-function ClientForm({ client, onDone }: { client: Client | null; onDone: () => void }) {
+function ClientForm({
+  client,
+  onDone,
+}: {
+  client: Client | null;
+  onDone: () => void;
+}) {
   const isEditing = client !== null;
   const [form, setForm] = useState<ClientInput>(() =>
     client
@@ -87,7 +97,10 @@ function ClientForm({ client, onDone }: { client: Client | null; onDone: () => v
   const pending = createClient.isPending || updateClient.isPending;
 
   function fieldHasError(field: string): boolean {
-    return error !== null && error.fieldErrors.some((fieldError) => fieldError.field === field);
+    return (
+      error !== null &&
+      error.fieldErrors.some((fieldError) => fieldError.field === field)
+    );
   }
 
   function update(field: keyof ClientInput, value: string) {
@@ -133,103 +146,123 @@ function ClientForm({ client, onDone }: { client: Client | null; onDone: () => v
 
       <FormError error={error} />
 
-          <div className="space-y-2">
-            <Label htmlFor="client-name">Name</Label>
-            <Input
-              id="client-name"
-              required
-              maxLength={255}
-              aria-invalid={fieldHasError("name")}
-              value={form.name}
-              onChange={(event) => update("name", event.target.value)}
-            />
-          </div>
+      <div className="space-y-2">
+        <Label htmlFor="client-name">Name</Label>
+        <Input
+          id="client-name"
+          name="clientName"
+          autoComplete="organization"
+          required
+          maxLength={255}
+          aria-invalid={fieldHasError("name")}
+          value={form.name}
+          onChange={(event) => update("name", event.target.value)}
+        />
+      </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="client-contact">Contact person</Label>
-              <Input
-                id="client-contact"
-                maxLength={255}
-                aria-invalid={fieldHasError("contactPerson")}
-                value={form.contactPerson ?? ""}
-                onChange={(event) => update("contactPerson", event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="client-email">Email</Label>
-              <Input
-                id="client-email"
-                type="email"
-                maxLength={255}
-                aria-invalid={fieldHasError("email")}
-                value={form.email ?? ""}
-                onChange={(event) => update("email", event.target.value)}
-              />
-            </div>
-          </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="client-contact">Contact person</Label>
+          <Input
+            id="client-contact"
+            name="contactPerson"
+            autoComplete="name"
+            maxLength={255}
+            aria-invalid={fieldHasError("contactPerson")}
+            value={form.contactPerson ?? ""}
+            onChange={(event) => update("contactPerson", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="client-email">Email</Label>
+          <Input
+            id="client-email"
+            name="clientEmail"
+            autoComplete="email"
+            spellCheck={false}
+            type="email"
+            maxLength={255}
+            aria-invalid={fieldHasError("email")}
+            value={form.email ?? ""}
+            onChange={(event) => update("email", event.target.value)}
+          />
+        </div>
+      </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="client-phone">Phone</Label>
-              <Input
-                id="client-phone"
-                type="tel"
-                maxLength={50}
-                aria-invalid={fieldHasError("phone")}
-                value={form.phone ?? ""}
-                onChange={(event) => update("phone", event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="client-uen">UEN</Label>
-              <Input
-                id="client-uen"
-                maxLength={20}
-                aria-invalid={fieldHasError("uen")}
-                value={form.uen ?? ""}
-                onChange={(event) => update("uen", event.target.value)}
-              />
-              <p className="text-xs text-app-muted">Prints on the invoice document.</p>
-            </div>
-          </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="client-phone">Phone</Label>
+          <Input
+            id="client-phone"
+            name="clientPhone"
+            autoComplete="tel"
+            inputMode="tel"
+            type="tel"
+            maxLength={50}
+            aria-invalid={fieldHasError("phone")}
+            value={form.phone ?? ""}
+            onChange={(event) => update("phone", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="client-uen">UEN</Label>
+          <Input
+            id="client-uen"
+            name="clientUen"
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={20}
+            aria-invalid={fieldHasError("uen")}
+            value={form.uen ?? ""}
+            onChange={(event) => update("uen", event.target.value)}
+          />
+          <p className="text-xs text-app-muted">
+            Prints on the invoice document.
+          </p>
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="client-address">Address</Label>
-            <Textarea
-              id="client-address"
-              maxLength={500}
-              aria-invalid={fieldHasError("address")}
-              value={form.address ?? ""}
-              onChange={(event) => update("address", event.target.value)}
-            />
-          </div>
+      <div className="space-y-2">
+        <Label htmlFor="client-address">Address</Label>
+        <Textarea
+          id="client-address"
+          name="clientAddress"
+          autoComplete="street-address"
+          maxLength={500}
+          aria-invalid={fieldHasError("address")}
+          value={form.address ?? ""}
+          onChange={(event) => update("address", event.target.value)}
+        />
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="client-payment-notes">Payment notes</Label>
-            <Textarea
-              id="client-payment-notes"
-              maxLength={2000}
-              aria-invalid={fieldHasError("paymentNotes")}
-              value={form.paymentNotes ?? ""}
-              onChange={(event) => update("paymentNotes", event.target.value)}
-            />
-            <p className="text-xs text-app-muted">
-              PayNow number, bank details, or anything else that should print on the invoice.
-            </p>
-          </div>
+      <div className="space-y-2">
+        <Label htmlFor="client-payment-notes">Payment notes</Label>
+        <Textarea
+          id="client-payment-notes"
+          name="paymentNotes"
+          autoComplete="off"
+          maxLength={2000}
+          aria-invalid={fieldHasError("paymentNotes")}
+          value={form.paymentNotes ?? ""}
+          onChange={(event) => update("paymentNotes", event.target.value)}
+        />
+        <p className="text-xs text-app-muted">
+          PayNow number, bank details, or anything else that should print on the
+          invoice.
+        </p>
+      </div>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={pending}>
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : isEditing ? "Save changes" : "Create client"}
-            </Button>
-          </DialogFooter>
-        </form>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline" disabled={pending}>
+            Cancel
+          </Button>
+        </DialogClose>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : isEditing ? "Save changes" : "Create client"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 

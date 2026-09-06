@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { useApiQuery, keys } from "@/lib/hooks";
 import type { Client, InvoiceStatus, InvoiceSummary, Page } from "@/lib/types";
 
@@ -38,9 +38,66 @@ export const STATUS_FILTERS: StatusFilter[] = [
  * has as many pages as "All".
  */
 export function useInvoiceList() {
-  const [status, setStatusState] = useState<StatusFilter>("ALL");
-  const [clientId, setClientIdState] = useState<number | null>(null);
-  const [page, setPage] = useState(0);
+  /**
+   * The whole filter — status, client and page — lives in the URL rather than
+   * in component state.
+   *
+   * <p>Three reasons. The dashboard links straight to the approval queue
+   * (`/invoices?status=PENDING_APPROVAL`), and a link that silently landed on
+   * the unfiltered list would be worse than no link. A filtered view becomes
+   * something the owner can bookmark or send to someone. And keeping all of
+   * it in one place is what makes Back and Forward coherent: with the status
+   * in the URL but the page in `useState`, going forward into a filtered view
+   * restored the filter while leaving the page number from wherever you had
+   * been, which showed an empty page 3 of a filter you had just arrived at.
+   *
+   * <p>Every value is validated on the way out of the URL — an unrecognised
+   * status falls back to "ALL", a non-numeric page to 0 — so a hand-edited or
+   * stale link degrades to something sensible instead of a 400.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const statusParam = searchParams.get("status");
+  const status: StatusFilter =
+    statusParam !== null && (STATUS_FILTERS as string[]).includes(statusParam)
+      ? (statusParam as StatusFilter)
+      : "ALL";
+
+  const clientIdParam = Number(searchParams.get("clientId"));
+  const clientId = Number.isInteger(clientIdParam) && clientIdParam > 0 ? clientIdParam : null;
+
+  const pageParam = Number(searchParams.get("page"));
+  const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 0;
+
+  /**
+   * Writes the filter back to the URL.
+   *
+   * <p>`page` is reset by every caller that changes a filter, and doing it
+   * here rather than at each call site is what makes that impossible to
+   * forget. It also has to happen in the same update as the filter: two
+   * separate writes would render once with the new filter and the old page,
+   * and that render would send a request for it.
+   */
+  function updateFilter(change: (params: URLSearchParams) => void, resetPage = true) {
+    setSearchParams(
+      (current) => {
+        const updated = new URLSearchParams(current);
+        change(updated);
+        if (resetPage) updated.delete("page");
+        return updated;
+      },
+      // `replace` so clicking through five tabs does not leave five entries in
+      // the back stack between the user and wherever they came from.
+      { replace: true },
+    );
+  }
+
+  function setPage(next: number) {
+    updateFilter((params) => {
+      if (next <= 0) params.delete("page");
+      else params.set("page", String(next));
+    }, false);
+  }
 
   const params = new URLSearchParams();
   if (status !== "ALL") params.set("status", status);
@@ -64,21 +121,26 @@ export function useInvoiceList() {
   );
 
   function setStatus(next: StatusFilter) {
-    setStatusState(next);
-    setPage(0);
+    updateFilter((params) => {
+      if (next === "ALL") params.delete("status");
+      else params.set("status", next);
+    });
   }
 
   function setClientId(next: number | null) {
-    setClientIdState(next);
-    setPage(0);
+    updateFilter((params) => {
+      if (next === null) params.delete("clientId");
+      else params.set("clientId", String(next));
+    });
   }
 
   const hasFilters = status !== "ALL" || clientId !== null;
 
   function clearFilters() {
-    setStatusState("ALL");
-    setClientIdState(null);
-    setPage(0);
+    updateFilter((params) => {
+      params.delete("status");
+      params.delete("clientId");
+    });
   }
 
   return {

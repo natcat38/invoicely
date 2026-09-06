@@ -399,10 +399,43 @@ class AuthApiTest {
                 .andExpect(jsonPath("$.role").value("OWNER"))
                 .andExpect(jsonPath("$.businessName").value("Acme Renovations"))
                 .andExpect(jsonPath("$.mustChangePassword").value(false))
+                // The business's GST setting travels with the identity so the
+                // UI can show a correct GST line before an invoice exists —
+                // including for staff, who cannot read /settings at all. A
+                // freshly created business is not registered, but still
+                // carries the default rate, because the rate is kept either
+                // way (Business.gstRate).
+                .andExpect(jsonPath("$.businessGstRegistered").value(false))
+                .andExpect(jsonPath("$.businessGstRate").value(0.0900))
                 // MeResponse deliberately has no token field at all — see its
                 // Javadoc for why a read endpoint must never be able to hand
                 // out a fresh one.
                 .andExpect(jsonPath("$.token").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("a staff member reads the business's GST setting from /auth/me, which they cannot get from /settings")
+    void meCarriesTheGstSettingForStaffToo() throws Exception {
+        Business business = businesses.save(new Business("Acme Renovations"));
+        business.setGstRegistered(true);
+        business.setGstRate(new java.math.BigDecimal("0.0800"));
+        businesses.save(business);
+
+        User staff = users.save(new User(business, "Sam Staff", uniqueEmail(),
+                passwordEncoder.encode("correct-password"), Role.STAFF));
+
+        // The point of the test: /settings is owner-only, so before this field
+        // existed a staff member had no way to know the business charged GST
+        // until an invoice had already been saved — and the builder's live
+        // preview showed a document with no GST line at all.
+        mockMvc.perform(get("/settings").headers(TestTokens.bearer(jwtService, staff)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/auth/me").headers(TestTokens.bearer(jwtService, staff)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("STAFF"))
+                .andExpect(jsonPath("$.businessGstRegistered").value(true))
+                .andExpect(jsonPath("$.businessGstRate").value(0.0800));
     }
 
     @Test
