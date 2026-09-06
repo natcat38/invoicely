@@ -20,12 +20,11 @@ roles, the full lifecycle and payments, tests, CI) followed by a full-repo
 audit and hardening pass whose reports are kept in
 [`reports/phase1-audit/`](reports/phase1-audit/).
 
-**Phase 2 (the React UI) is in progress.** The foundation is in `web/`:
-Vite + TypeScript + Tailwind 4 + shadcn/ui, the Design Direction's tokens,
-registration and sign-in, the forced password-change interstitial, session
-restore, and role-aware routing. The screens themselves — clients, the
-invoice list, the builder with its live document preview, the dashboard —
-are Tasks 8 and 9, and their routes currently render a placeholder saying so.
+**Phase 2 (the React UI) is complete.** `web/` is a Vite + TypeScript + React
+app using Tailwind 4 and shadcn/ui: registration and sign-in, the forced
+password change, clients, the invoice list, the invoice builder with its live
+paper-document preview, maker-checker approvals, payments, the owner
+dashboard, Team and Settings.
 
 ## Stack
 
@@ -91,7 +90,7 @@ Interactive docs, once the app is running: `http://localhost:8080/swagger-ui.htm
 | Auth | `POST /auth/register` | anyone (creates the business + owner) |
 | Auth | `POST /auth/login` | anyone |
 | Auth | `POST /auth/change-password` | any authenticated user |
-| Auth | `GET /auth/me` | any authenticated user (session restore after a page reload) |
+| Auth | `GET /auth/me` | any authenticated user (session restore, and the business GST setting the builder needs) |
 | Clients | `POST /clients`, `GET /clients` (`archived`, `q`, `page`, `size`), `GET /clients/{id}`, `PUT /clients/{id}`, `DELETE /clients/{id}` | any role |
 | Invoices | `POST /invoices`, `GET /invoices` (`status`, `clientId`, `page`, `size`; defaults to a "needs attention" sort), `GET /invoices/{id}`, `PUT /invoices/{id}`, `DELETE /invoices/{id}` | any role |
 | Lifecycle | `POST /invoices/{id}/submit` | any role (staff's half of maker-checker) |
