@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { amount, date, money } from "@/lib/format";
 import { keys, useApiQuery } from "@/lib/hooks";
-import type { Dashboard, InvoiceSummary } from "@/lib/types";
+import type { Dashboard, InvoiceSummary, Page } from "@/lib/types";
 
 /**
  * The owner's landing page: what is owed, what is late, what came in this
@@ -28,8 +28,25 @@ import type { Dashboard, InvoiceSummary } from "@/lib/types";
  * work that has stopped until this person acts, so it is not tucked below the
  * money — it sits directly under it, with a way straight into each invoice.
  */
+const RECENT_QUERY = "page=0&size=5";
+
 export function DashboardScreen() {
   const dashboard = useApiQuery<Dashboard>(keys.dashboard(), "/dashboard");
+
+  /**
+   * The five most recent invoices, from the ordinary list endpoint rather
+   * than the dashboard's own response.
+   *
+   * <p>`/dashboard` deliberately returns only the approval queue, and adding
+   * a second list to it would mean the API deciding what "recent" means for
+   * one screen. The list endpoint already sorts by "needs attention" — the
+   * same order the Invoices page shows — so this is the top of that list, and
+   * the link below goes to the rest of it.
+   */
+  const recent = useApiQuery<Page<InvoiceSummary>>(
+    keys.invoices(RECENT_QUERY),
+    `/invoices?${RECENT_QUERY}`,
+  );
 
   if (dashboard.isPending) return <Loading label="Loading your dashboard…" />;
   if (dashboard.isError) {
@@ -95,14 +112,49 @@ export function DashboardScreen() {
             description="Invoices your staff submit for approval will appear here."
           />
         ) : (
-          <ApprovalQueue invoices={data.awaitingApprovalQueue} />
+          <InvoiceRows invoices={data.awaitingApprovalQueue} />
         )}
+      </section>
+
+      <section className="mt-8" aria-labelledby="recent-invoices">
+        <div className="mb-3 flex items-baseline justify-between gap-4">
+          <h2 id="recent-invoices" className="text-lg font-medium text-app-text">
+            Recent invoices
+          </h2>
+          <Link
+            to="/invoices"
+            className="text-sm font-medium text-app-accent underline-offset-4 hover:underline"
+          >
+            See all
+          </Link>
+        </div>
+
+        {/* No LoadError here: the dashboard's own figures are the point of
+            this page, and a failed side-list should not replace them with an
+            error. It simply shows nothing, and the Invoices page reports the
+            failure properly if it persists. */}
+        {recent.isPending ? (
+          <Loading label="Loading invoices…" />
+        ) : recent.data && recent.data.content.length > 0 ? (
+          <InvoiceRows invoices={recent.data.content} />
+        ) : recent.isSuccess ? (
+          <EmptyState
+            title="No invoices yet."
+            description="Create your first one."
+            action={
+              <Button asChild size="sm">
+                <Link to="/invoices/new">New invoice</Link>
+              </Button>
+            }
+          />
+        ) : null}
       </section>
     </div>
   );
 }
 
-function ApprovalQueue({ invoices }: { invoices: InvoiceSummary[] }) {
+/** The same five columns for both lists on this page, so they read as one thing. */
+function InvoiceRows({ invoices }: { invoices: InvoiceSummary[] }) {
   return (
     // The table scrolls inside this container rather than widening the page —
     // the quality floor asks that the page itself never scroll sideways.
