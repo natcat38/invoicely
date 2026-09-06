@@ -1,6 +1,9 @@
 # Invoicely
 
 [![CI](https://github.com/natcat38/invoicely/actions/workflows/ci.yml/badge.svg)](https://github.com/natcat38/invoicely/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-137%20API%20%2B%2013%20web-brightgreen)
+![Java](https://img.shields.io/badge/Java-25-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen)
 
 Invoicing for a small Singapore business with more than one person touching
 money.
@@ -12,13 +15,84 @@ against a running balance, and move through a fixed lifecycle
 (`DRAFT → PENDING_APPROVAL → SENT → OVERDUE → PAID`). The owner gets a
 dashboard of what's outstanding, overdue, and earned this month.
 
+> **Live demo:** not deployed yet — the API image and the demo seeder are
+> built and verified (see [Deploying it](#deploying-it)); the hosting is the
+> remaining step.
+
+![The owner dashboard: outstanding, overdue and revenue this month, the approval queue, and recent invoices](docs/images/dashboard.png)
+
+<!-- Screenshots are of the seeded demo data (see "Deploying it"), so the
+     figures are consistent with each other and with the API's own rounding. -->
+
+## Why I built this
+
+Most invoicing tutorials build a CRUD app: one user, a list of invoices, a
+total at the bottom. The interesting problems in invoicing are the ones that
+appear only when a second person is involved and the numbers have to be right.
+
+So this one is deliberately built around three of them:
+
+- **Two people, two roles, one document.** Staff draft, the owner approves and
+  sends. That is enforced in the service layer with role checks that are kept
+  and tested separately from the state-machine checks, because "you may not do
+  that" (403) and "not from this status" (409) are different failures that
+  happen to look alike from the outside.
+- **Money that has to agree with itself.** `BigDecimal` throughout, rounded in
+  exactly one place, with GST snapshotted at send so that changing the rate
+  never rewrites an invoice a client already holds. The one piece of
+  client-side arithmetic — the builder's live preview — mirrors the server's
+  rounding and has a test suite asserting they produce the same cent.
+- **A document, not a form.** The invoice a client receives is a designed
+  artifact rendered by the same component in the builder's live preview and on
+  the detail page, so what the maker sees is what the client gets.
+
+| The document | The builder |
+|---|---|
+| ![A paid invoice: letterhead, bill-to, ruled ledger, GST line and the PAID stamp](docs/images/invoice-document.png) | ![The builder: form on the left, live document preview on the right](docs/images/invoice-builder.png) |
+
+Quiet SaaS chrome framing a paper-and-ink document — the contrast is the point,
+and the document is the only place any of the product's personality lives.
+
+It is also the codebase I used to learn Java and Spring, which is why the
+comments explain *why* far more often than *what*, and why every non-obvious
+decision has an [ADR](docs/adr/) rather than living in someone's head.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph browser["Browser"]
+        ui["React + TypeScript<br/>Vite · Tailwind · shadcn/ui"]
+    end
+    subgraph api["Spring Boot 4 · Java 25"]
+        web["web<br/>controllers, DTOs, Problem Details"]
+        sec["security<br/>JWT, account state, throttle"]
+        dom["domain<br/>entities, lifecycle, money"]
+    end
+    db[("PostgreSQL 16<br/>Flyway migrations")]
+
+    ui -- "JSON over HTTPS<br/>Bearer token · CORS allow-list" --> web
+    web --> sec
+    web --> dom
+    dom --> db
+```
+
+Two deployables that talk over CORS, because the API and the UI want the same
+paths — [ADR-0012](docs/adr/0012-two-deployables.md) explains why, and what it
+would take to merge them.
+
 ## Status
 
 **Phase 1 (the API) is complete** — Tasks 1–6 of the
-[Tech Scope](docs/Invoice_Tech_Scope.md) (domain model, CRUD, JWT auth with
-roles, the full lifecycle and payments, tests, CI) followed by a full-repo
-audit and hardening pass whose reports are kept in
-[`reports/phase1-audit/`](reports/phase1-audit/).
+[Tech Scope](docs/Invoice_Tech_Scope.md): domain model, CRUD, JWT auth with
+roles, the full lifecycle and payments, tests, CI.
+
+It was then put through a **full self-audit** before the UI started — security,
+money and lifecycle, domain model, test gaps, architecture — and the findings
+fixed. The reports and the fix plan are kept in
+[`reports/phase1-audit/`](reports/phase1-audit/) rather than thrown away: they
+are the record of what was wrong (a payment race, an N+1 on the invoice list, a
+login timing side-channel) and what was done about it.
 
 **Phase 2 (the React UI) is complete.** `web/` is a Vite + TypeScript + React
 app using Tailwind 4 and shadcn/ui: registration and sign-in, the forced
@@ -80,6 +154,56 @@ both.
 > (`V1` was still a placeholder until Task 2). Local Postgres is disposable,
 > so the fix is to let Flyway start over:
 > `docker compose exec postgres psql -U invoicely -d invoicely -c "drop table flyway_schema_history;"`
+
+## Deploying it
+
+Two deployables, not one: the API as a container, the UI as static files. They
+want the same paths (`/invoices` is both an API endpoint and a page), so
+serving them from one origin would mean moving the whole API under `/api` —
+see [ADR-0012](docs/adr/0012-two-deployables.md) for the reasoning and how to
+reverse it.
+
+**The API.** `docker build -t invoicely .` from the repository root, then run
+it with these environment variables. Everything is configured this way; there
+is no configuration file to edit for a deployment.
+
+| Variable | Required | What it is |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | yes | `jdbc:postgresql://host:5432/invoicely` |
+| `SPRING_DATASOURCE_USERNAME` | yes | |
+| `SPRING_DATASOURCE_PASSWORD` | yes | |
+| `SPRING_PROFILES_ACTIVE` | yes | `prod` (add `,demo` to seed the demo data) |
+| `INVOICELY_SECURITY_SECRET` | yes | 32+ characters. `openssl rand -base64 48` |
+| `INVOICELY_SECURITY_ALLOWED_ORIGINS` | yes | Where the UI is served from, e.g. `https://invoicely.example` |
+| `INVOICELY_SECURITY_TOKEN_LIFETIME` | no | Defaults to `12h` |
+| `INVOICELY_DEMO_PASSWORD` | with `demo` | The password both demo logins share |
+
+With `SPRING_PROFILES_ACTIVE=prod` the app **refuses to start** without
+`INVOICELY_SECURITY_SECRET`. That is deliberate: a generated key signs tokens
+that do not survive a restart and that a second instance rejects, which looks
+like an intermittent authentication bug rather than the missing variable it is.
+
+Flyway runs the migrations on startup, so the database needs to exist but not
+to be prepared.
+
+**The UI.** `cd web && npm ci && npm run build`, then serve `web/dist` on any
+static host. Two things have to agree or every request fails in the browser
+with an opaque CORS error:
+
+- build with `VITE_API_BASE_URL` set to the API's public URL, and
+- set the API's `INVOICELY_SECURITY_ALLOWED_ORIGINS` to the UI's origin.
+
+The host must also fall back to `index.html` for unknown paths, or a deep link
+like `/invoices/2` 404s on a hard refresh. `web/public/_redirects` covers
+Netlify and Cloudflare Pages; Vercel wants a `rewrites` entry in `vercel.json`,
+and Render has a Rewrite rule in its dashboard.
+
+**The demo data.** Adding `demo` to `SPRING_PROFILES_ACTIVE` seeds one business
+with an owner and a staff login, a few clients, and invoices in every status —
+including one waiting in the approval queue, so both halves of maker-checker
+are visible immediately. It is idempotent, so a restart does not duplicate it,
+and it refuses to run without `INVOICELY_DEMO_PASSWORD` rather than shipping a
+password that lives in this repository.
 
 ## API tour
 
