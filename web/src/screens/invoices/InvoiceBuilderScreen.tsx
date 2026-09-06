@@ -23,6 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/**
+ * The client dropdown's options. Shared verbatim with the invoice list's own
+ * client filter so both resolve to one cached request.
+ */
+const ACTIVE_CLIENTS_QUERY = "archived=false&size=200";
+
 type LineDraft = { description: string; quantity: string; unitPrice: string };
 
 const BLANK_LINE: LineDraft = { description: "", quantity: "1", unitPrice: "" };
@@ -95,9 +101,13 @@ function Builder({ existing }: { existing?: Invoice }) {
   );
   const [error, setError] = useState<ApiError | null>(null);
 
+  // The same key the invoice list uses for this exact request, so the two
+  // screens share one cache entry instead of fetching the identical list
+  // twice. Keys built from a query string have to agree character for
+  // character — a stray leading "?" is enough to split them.
   const clients = useApiQuery<Page<Client>>(
-    keys.clients("?archived=false&size=200"),
-    "/clients?archived=false&size=200",
+    keys.clients(ACTIVE_CLIENTS_QUERY),
+    `/clients?${ACTIVE_CLIENTS_QUERY}`,
   );
 
   /**

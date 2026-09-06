@@ -150,7 +150,21 @@ export function ClientsScreen() {
       ) : null}
 
       {clients.data && clients.data.content.length === 0 ? (
-        tab === "active" ? (
+        // Three different nothings, and they must not share one message.
+        // "No clients yet. Add your first." is plainly wrong for someone who
+        // has thirty clients and searched for a name that is not among them —
+        // it tells them to do something they already did.
+        debouncedSearch.trim().length > 0 ? (
+          <EmptyState
+            title="No clients match that search."
+            description={`Nothing found for "${debouncedSearch.trim()}".`}
+            action={
+              <Button variant="outline" onClick={() => changeSearch("")}>
+                Clear search
+              </Button>
+            }
+          />
+        ) : tab === "active" ? (
           <EmptyState
             title="No clients yet."
             description="Add your first client to start billing them."

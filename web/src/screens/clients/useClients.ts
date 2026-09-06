@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useApiMutation, useApiQuery, keys } from "@/lib/hooks";
 import type { Client, Page } from "@/lib/types";
 
@@ -69,18 +68,12 @@ export function useCreateClient() {
  * archive endpoint; Product Scope §5.2 makes this `PUT` do both jobs.
  */
 export function useUpdateClient() {
-  const queryClient = useQueryClient();
+  // No extra invalidation for the single-client entry: `keys.client(id)` is
+  // `["clients", "detail", id]`, and ALL_CLIENT_LISTS is the `["clients"]`
+  // prefix that already matches it — the same prefix rule described above.
   return useApiMutation<Client, { id: number; input: ClientInput }>(
     ({ id, input }) => ({ path: `/clients/${id}`, options: { method: "PUT", body: input } }),
     [ALL_CLIENT_LISTS],
-    {
-      onSuccess: (client) => {
-        // ALL_CLIENT_LISTS above already refreshes every list. This covers
-        // the one cache entry that invalidation cannot reach, because it is
-        // keyed by this client's own id rather than by "clients".
-        queryClient.invalidateQueries({ queryKey: keys.client(client.id) });
-      },
-    },
   );
 }
 

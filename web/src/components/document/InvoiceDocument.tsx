@@ -1,4 +1,4 @@
-import { amount, date, money, quantity as formatQuantity } from "@/lib/format";
+import { amount, date, money, quantity as formatQuantity, statusLabel } from "@/lib/format";
 import type { InvoiceStatus } from "@/lib/types";
 import { Stamp } from "./Stamp";
 
@@ -52,7 +52,11 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
     // would read as a card in the app layer rather than as a sheet of paper.
     <article
       className="relative overflow-hidden border border-paper-rule bg-paper p-8 text-ink sm:p-10"
-      aria-label={`Invoice ${invoice.number}`}
+      // The status is part of the label so the document describes itself to a
+      // screen reader. That is what lets the stamp stay aria-hidden: it is a
+      // visual restatement of something already announced here, and reading
+      // both would say "overdue" twice.
+      aria-label={`Invoice ${invoice.number}, ${statusLabel(invoice.status)}`}
     >
       <header className="flex flex-wrap items-start justify-between gap-6">
         <div>
@@ -142,9 +146,12 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
             ) : (
               invoice.lines.map((line, index) => (
                 // Line items have no stable id while a draft is being typed,
-                // so the index is the only key available here. It is safe
-                // because the rows are never reordered — adding and removing
-                // happens at the end of the list.
+                // so the index is the only key available. That is safe here
+                // because these rows are pure output: every cell is derived
+                // from props, and none of them holds state or focus that
+                // could be handed to the wrong row when a line is removed
+                // from the middle. The builder's *inputs* are a different
+                // matter, and are controlled for that reason.
                 <tr key={index} className="border-b border-paper-rule align-top">
                   <td className="py-2 pr-4">{line.description || <span className="text-ink/40">—</span>}</td>
                   <td className="py-2 text-right font-mono">{formatQuantity(line.quantity)}</td>
