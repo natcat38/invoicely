@@ -180,6 +180,32 @@
  * docs are the source of truth.)
  */
 
+/*
+ * The one motion moment the Design Direction allows: the stamp pressing onto
+ * the document when an invoice becomes PAID (or is found OVERDUE).
+ *
+ * The rotation is repeated in both keyframes because a transform is a single
+ * property — animating only the scale would drop the -3 degree tilt for the
+ * duration and snap it back at the end. The element keeps its own
+ * `rotate(-3deg)` after the animation finishes, which is exactly where the
+ * `to` frame leaves it, so there is no jump.
+ *
+ * Applied via `motion-safe:`, and index.css already collapses every animation
+ * to nothing under `prefers-reduced-motion` — belt and braces, because this is
+ * the single piece of motion in the product and it must not be the one thing
+ * that ignores the setting.
+ */
+@keyframes stamp-press {
+  from {
+    transform: rotate(-3deg) scale(1.15);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-3deg) scale(1);
+    opacity: 0.8;
+  }
+}
+
 @layer base {
   * {
     /* Tailwind 4 defaults a bare `border` to currentColor. shadcn components

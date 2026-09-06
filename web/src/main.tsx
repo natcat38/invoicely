@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router";
 import { AuthProvider } from "@/auth/AuthProvider";
+import { Toaster } from "@/components/ui/sonner";
 import { ApiError } from "@/lib/api";
 import { App } from "./App";
 import "./index.css";
@@ -38,6 +39,11 @@ createRoot(document.getElementById("root")!).render(
       <AuthProvider>
         <BrowserRouter>
           <App />
+          {/* One toaster for the whole app. Toasts confirm things that already
+              happened somewhere else on screen (an invoice sent, a payment
+              recorded); anything a user must act on is an inline error
+              instead, because a toast disappears. */}
+          <Toaster position="bottom-right" />
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

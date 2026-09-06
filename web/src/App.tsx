@@ -6,6 +6,10 @@ import { ChangePasswordScreen } from "@/screens/ChangePasswordScreen";
 import { LoginScreen } from "@/screens/LoginScreen";
 import { PlaceholderScreen } from "@/screens/PlaceholderScreen";
 import { RegisterScreen } from "@/screens/RegisterScreen";
+import { ClientsScreen } from "@/screens/clients/ClientsScreen";
+import { InvoiceBuilderScreen } from "@/screens/invoices/InvoiceBuilderScreen";
+import { InvoiceDetailScreen } from "@/screens/invoices/InvoiceDetailScreen";
+import { InvoiceListScreen } from "@/screens/invoices/InvoiceListScreen";
 
 /**
  * Every route in the app.
@@ -34,8 +38,14 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<HomeForRole />} />
 
-          <Route path="/invoices" element={<PlaceholderScreen title="Invoices" task="Task 8" />} />
-          <Route path="/clients" element={<PlaceholderScreen title="Clients" task="Task 8" />} />
+          <Route path="/invoices" element={<InvoiceListScreen />} />
+          {/* "/invoices/new" is declared before "/invoices/:id" only for a
+              reader's benefit - react-router ranks routes by specificity, not
+              by order, so a static segment already wins over a dynamic one. */}
+          <Route path="/invoices/new" element={<InvoiceBuilderScreen />} />
+          <Route path="/invoices/:id" element={<InvoiceDetailScreen />} />
+          <Route path="/invoices/:id/edit" element={<InvoiceBuilderScreen />} />
+          <Route path="/clients" element={<ClientsScreen />} />
 
           <Route element={<RequireAuth role="OWNER" />}>
             <Route path="/dashboard" element={<PlaceholderScreen title="Dashboard" task="Task 9" />} />
