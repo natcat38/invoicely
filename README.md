@@ -1,6 +1,9 @@
 # Invoicely
 
 [![CI](https://github.com/natcat38/invoicely/actions/workflows/ci.yml/badge.svg)](https://github.com/natcat38/invoicely/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-137%20API%20%2B%2013%20web-brightgreen)
+![Java](https://img.shields.io/badge/Java-25-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen)
 
 Invoicing for a small Singapore business with more than one person touching
 money.
@@ -11,6 +14,10 @@ GST at Singapore's rate when the business is GST-registered, track payments
 against a running balance, and move through a fixed lifecycle
 (`DRAFT → PENDING_APPROVAL → SENT → OVERDUE → PAID`). The owner gets a
 dashboard of what's outstanding, overdue, and earned this month.
+
+> **Live demo:** not deployed yet — the API image and the demo seeder are
+> built and verified (see [Deploying it](#deploying-it)); the hosting is the
+> remaining step.
 
 ![The owner dashboard: outstanding, overdue and revenue this month, the approval queue, and recent invoices](docs/images/dashboard.png)
 
@@ -77,10 +84,15 @@ would take to merge them.
 ## Status
 
 **Phase 1 (the API) is complete** — Tasks 1–6 of the
-[Tech Scope](docs/Invoice_Tech_Scope.md) (domain model, CRUD, JWT auth with
-roles, the full lifecycle and payments, tests, CI) followed by a full-repo
-audit and hardening pass whose reports are kept in
-[`reports/phase1-audit/`](reports/phase1-audit/).
+[Tech Scope](docs/Invoice_Tech_Scope.md): domain model, CRUD, JWT auth with
+roles, the full lifecycle and payments, tests, CI.
+
+It was then put through a **full self-audit** before the UI started — security,
+money and lifecycle, domain model, test gaps, architecture — and the findings
+fixed. The reports and the fix plan are kept in
+[`reports/phase1-audit/`](reports/phase1-audit/) rather than thrown away: they
+are the record of what was wrong (a payment race, an N+1 on the invoice list, a
+login timing side-channel) and what was done about it.
 
 **Phase 2 (the React UI) is complete.** `web/` is a Vite + TypeScript + React
 app using Tailwind 4 and shadcn/ui: registration and sign-in, the forced
