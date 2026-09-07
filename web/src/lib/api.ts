@@ -7,7 +7,11 @@
  * failed response look like a successful one.
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+// The trailing-slash strip matters: paths are appended as "/auth/login", so a
+// base of "https://api.example/" would produce "//auth/login" — a path Spring's
+// CORS mapping does not match, which surfaces as an opaque preflight failure.
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080")
+  .replace(/\/+$/, "");
 
 /** One invalid field, exactly as `GlobalExceptionHandler.FieldProblem` sends it. */
 export type FieldError = { field: string; message: string };
