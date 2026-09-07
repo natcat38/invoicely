@@ -13,7 +13,7 @@ directory.
 | `.githooks` | Pre-commit hook that runs the OKF validator locally (`git config core.hooksPath .githooks`). |
 | `web` | Phase 2 React UI (Vite + TypeScript + Tailwind 4 + shadcn/ui). Design tokens live in `web/src/index.css`; `web/src/lib/api.ts` is the only module that talks to the API, and `web/src/lib/preview-totals.ts` is the only place it does arithmetic. |
 | `reviews` | Repo-level review reports (recruiter readiness), as opposed to `reports/` which holds the code audits. |
-| `reports` | Prior audit outputs (security, money/lifecycle, domain, tests, docs, architecture) and the fix plans that track them. `reports/phase1-audit/FIX-PLAN.md` also records how each owner decision it raised was answered. |
+| `reports` | The Phase 1 self-audit (security, money/lifecycle, domain, tests, docs, architecture) and the fix plan that tracks it. `reports/phase1-audit/FIX-PLAN.md` also records how each owner decision it raised was answered. |
 
 Top-level deploy files: `Dockerfile` (the API image; the UI ships as static
 files, see `docs/adr/0012-two-deployables.md`) and `.dockerignore`.

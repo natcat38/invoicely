@@ -15,14 +15,45 @@ against a running balance, and move through a fixed lifecycle
 (`DRAFT → PENDING_APPROVAL → SENT → OVERDUE → PAID`). The owner gets a
 dashboard of what's outstanding, overdue, and earned this month.
 
-> **Live demo:** not deployed yet — the API image and the demo seeder are
-> built and verified (see [Deploying it](#deploying-it)); the hosting is the
-> remaining step.
+> **Live demo:** deploying to Render — the link lands here the moment it is
+> up. It runs on a free instance that sleeps when idle, so the **first page
+> load can take about 30 seconds** while the API wakes; everything after
+> that is instant.
 
 ![The owner dashboard: outstanding, overdue and revenue this month, the approval queue, and recent invoices](docs/images/dashboard.png)
 
 <!-- Screenshots are of the seeded demo data (see "Deploying it"), so the
      figures are consistent with each other and with the API's own rounding. -->
+
+## Five-minute tour
+
+The demo is seeded with one business, two logins that share a password, and
+seven invoices spread across every status — including one already waiting in
+the approval queue.
+
+| Login | Role | Sees |
+|---|---|---|
+| `owner@invoicely.demo` | Owner | Dashboard, approval queue, payments, Team, Settings |
+| `staff@invoicely.demo` | Staff | Clients and invoices — can draft and submit, nothing more |
+
+The password for both is set per deployment (it is never committed to this
+repository); it is shared alongside the demo link.
+
+The tour that shows the most in the least time:
+
+1. **Sign in as the owner.** The dashboard already has numbers on it —
+   outstanding, overdue, revenue this month — and one invoice sitting in the
+   approval queue. That queue exists because the *staff* login submitted it.
+2. **Open any invoice.** What renders is a document, not a form: letterhead,
+   bill-to, ruled ledger, a GST line, and a stamp on the paid ones.
+3. **Sign in as staff** (open a private window to hold both sessions). Create
+   an invoice in the builder and watch the paper preview update live — the
+   preview's arithmetic mirrors the server's `BigDecimal` rounding and is
+   tested to agree with it to the cent. Submit it.
+4. **Back as the owner**, the new invoice is now in the approval queue —
+   approve and send it, then record a payment against it. Try to record one
+   as staff and the API answers 403: maker-checker is enforced server-side,
+   not hidden in the UI.
 
 ## Why I built this
 
@@ -204,6 +235,38 @@ including one waiting in the approval queue, so both halves of maker-checker
 are visible immediately. It is idempotent, so a restart does not duplicate it,
 and it refuses to run without `INVOICELY_DEMO_PASSWORD` rather than shipping a
 password that lives in this repository.
+
+### The concrete recipe: Render + Neon, at S$0
+
+This is how the live demo is hosted. Render's own free PostgreSQL is deleted
+30 days after creation, which is the wrong lifetime for a portfolio — so the
+database lives on [Neon](https://neon.tech)'s free tier instead, which
+doesn't expire.
+
+1. **Neon** — create a project (region Singapore), which gives a database and
+   a connection string of the form
+   `postgresql://user:password@host/dbname?sslmode=require`. Spring wants it
+   split: the URL becomes `jdbc:postgresql://host/dbname?sslmode=require`,
+   and the user and password go in their own variables.
+2. **Render, Web Service** — *New → Web Service*, pick this repository,
+   runtime **Docker**, instance type **Free**, health check path `/ping`.
+   Set the environment variables from the table above, with
+   `SPRING_PROFILES_ACTIVE=prod,demo` so the demo data seeds itself.
+   Leave `INVOICELY_SECURITY_ALLOWED_ORIGINS` for step 4.
+3. **Render, Static Site** — *New → Static Site*, same repository. Root
+   directory `web`, build command `npm ci && npm run build`, publish
+   directory `dist`. Add the environment variable `VITE_API_BASE_URL` set to
+   the Web Service's URL from step 2, and under *Redirects/Rewrites* one
+   rule: source `/*`, destination `/index.html`, action **Rewrite** — without
+   it a hard refresh on `/invoices/2` is a 404.
+4. **Close the CORS loop** — set the API's
+   `INVOICELY_SECURITY_ALLOWED_ORIGINS` to the Static Site's URL from step 3
+   (scheme and host, no trailing slash).
+
+The free Web Service sleeps after ~15 minutes idle and takes ~30 seconds to
+wake — acceptable for a demo, stated up front so nobody debugs it as an
+outage. The database being external to Render also means the demo data
+survives the API instance being rebuilt or moved.
 
 ## API tour
 
