@@ -15,10 +15,12 @@ against a running balance, and move through a fixed lifecycle
 (`DRAFT → PENDING_APPROVAL → SENT → OVERDUE → PAID`). The owner gets a
 dashboard of what's outstanding, overdue, and earned this month.
 
-> **Live demo:** deploying to Render — the link lands here the moment it is
-> up. It runs on a free instance that sleeps when idle, so the **first page
-> load can take about 30 seconds** while the API wakes; everything after
-> that is instant.
+> **Live demo:** [invoicely-loo1.onrender.com](https://invoicely-loo1.onrender.com) —
+> log in as `owner@invoicely.demo` or `staff@invoicely.demo`, password
+> `invoicely-demo-2026`. It runs on a free instance that sleeps when idle,
+> so the **first page load can take about 30 seconds** while the API wakes;
+> everything after that is instant. The [five-minute tour](#five-minute-tour)
+> below is the fastest way through it.
 
 ![The owner dashboard: outstanding, overdue and revenue this month, the approval queue, and recent invoices](docs/images/dashboard.png)
 
@@ -36,8 +38,9 @@ the approval queue.
 | `owner@invoicely.demo` | Owner | Dashboard, approval queue, payments, Team, Settings |
 | `staff@invoicely.demo` | Staff | Clients and invoices — can draft and submit, nothing more |
 
-The password for both is set per deployment (it is never committed to this
-repository); it is shared alongside the demo link.
+The password for both is `invoicely-demo-2026`. It is deployment
+configuration, not a committed credential — it guards nothing but seeded
+demo data, and changing the environment variable changes it.
 
 The tour that shows the most in the least time:
 
