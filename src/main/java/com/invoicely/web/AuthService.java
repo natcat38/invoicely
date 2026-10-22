@@ -56,17 +56,20 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final CurrentRequest currentRequest;
+    private final DemoAccountGuard demoAccountGuard;
 
     AuthService(UserRepository users,
                 BusinessRepository businesses,
                 PasswordEncoder passwordEncoder,
                 JwtService jwtService,
-                CurrentRequest currentRequest) {
+                CurrentRequest currentRequest,
+                DemoAccountGuard demoAccountGuard) {
         this.users = users;
         this.businesses = businesses;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.currentRequest = currentRequest;
+        this.demoAccountGuard = demoAccountGuard;
     }
 
     /**
@@ -147,6 +150,10 @@ public class AuthService {
     public AuthResponse changePassword(ChangePasswordRequest request) {
         User user = users.findByIdAndBusinessId(currentRequest.userId(), currentRequest.businessId())
                 .orElseThrow(() -> new NotFoundException("User"));
+
+        // Before the current-password check: the demo password is public, so
+        // that check proves nothing here, and the caller needs the real reason.
+        demoAccountGuard.rejectPasswordChange(user);
 
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw invalidCredentials();

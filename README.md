@@ -1,7 +1,7 @@
 # Invoicely
 
 [![CI](https://github.com/natcat38/invoicely/actions/workflows/ci.yml/badge.svg)](https://github.com/natcat38/invoicely/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/tests-137%20API%20%2B%2013%20web-brightgreen)
+![Tests](https://img.shields.io/badge/tests-142%20API%20%2B%2018%20web-brightgreen)
 ![Java](https://img.shields.io/badge/Java-25-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen)
 
@@ -18,7 +18,8 @@ dashboard of what's outstanding, overdue, and earned this month.
 > **Live demo:** [invoicely-loo1.onrender.com](https://invoicely-loo1.onrender.com) —
 > log in as `owner@invoicely.demo` or `staff@invoicely.demo`, password
 > `invoicely-demo-2026`. It runs on a free instance that sleeps when idle,
-> so the **first page load can take about 30 seconds** while the API wakes;
+> so the **first sign-in can take a few minutes** (about 200 seconds when
+> measured) while the API wakes. The login page says so while it waits;
 > everything after that is instant. The [five-minute tour](#five-minute-tour)
 > below is the fastest way through it.
 
@@ -40,7 +41,16 @@ the approval queue.
 
 The password for both is `invoicely-demo-2026`. It is deployment
 configuration, not a committed credential — it guards nothing but seeded
-demo data, and changing the environment variable changes it.
+demo data. Setting `INVOICELY_DEMO_PASSWORD` chooses it for a fresh database
+only: the seeder skips a database that already has the demo owner.
+
+Because the password is public, the API refuses to change it. With the `demo`
+profile active, both seeded logins are protected: changing their password
+(`POST /auth/change-password`) and deactivating the staff login
+(`PATCH /team/{id}`) answer `403` with the problem type
+`demo-account-protected`, and the UI shows that message. Accounts you register
+yourself are unaffected. Business settings and drafts on the demo business are
+still editable by whoever is signed in.
 
 The tour that shows the most in the least time:
 
@@ -266,9 +276,13 @@ doesn't expire.
    `INVOICELY_SECURITY_ALLOWED_ORIGINS` to the Static Site's URL from step 3
    (scheme and host, no trailing slash).
 
-The free Web Service sleeps after ~15 minutes idle and takes ~30 seconds to
-wake — acceptable for a demo, stated up front so nobody debugs it as an
-outage. The database being external to Render also means the demo data
+The free Web Service sleeps after ~15 minutes idle. Waking it took about 200
+seconds when measured (a single sample in October 2026, so treat it as "a few
+minutes"). The login page polls `GET /ping` and shows a "waking the demo
+server" notice until the API answers, so a visitor sees why sign-in is slow
+rather than a form that looks hung. There is deliberately no keep-alive
+pinger: it would burn the free instance's hours to hide a cost the demo can
+state plainly. The database being external to Render also means the demo data
 survives the API instance being rebuilt or moved.
 
 ## API tour
