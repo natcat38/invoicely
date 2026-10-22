@@ -185,3 +185,26 @@ export async function api<T>(
 
   return parsed as T;
 }
+
+/** How long one liveness probe may take before it counts as a failure. */
+const PING_TIMEOUT_MS = 20_000;
+
+/**
+ * Asks the API whether it is up, via its public `GET /ping`.
+ *
+ * Resolves true only for a successful answer and never rejects: a sleeping
+ * Render instance answers with a gateway error that carries no CORS headers
+ * (the browser reports that as a network failure) or simply hangs, and all of
+ * those mean the same thing here: not up yet. Used by `watchServer`, which
+ * is what turns that into a "waking the demo server" notice on the login page.
+ */
+export async function pingApi(signal: AbortSignal): Promise<boolean> {
+  try {
+    const response = await fetch(`${BASE_URL}/ping`, {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(PING_TIMEOUT_MS)]),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}

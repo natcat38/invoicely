@@ -2,8 +2,11 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/auth/useAuth";
+import { useServerWake } from "@/lib/useServerWake";
+import { SLOW_MS } from "@/lib/serverWake";
 import { AuthLayout } from "./AuthLayout";
 import { FormError } from "./FormError";
+import { WakeNotice } from "./WakeNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,11 +19,18 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const serverState = useServerWake();
+  // A sign-in that has been pending for a few seconds is waiting on a sleeping
+  // API even if the background probe has not said so yet (it could have been
+  // answered by an instance that then went away), so the notice and the button
+  // label must not depend on the probe alone.
+  const [slowSubmit, setSlowSubmit] = useState(false);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
+    const slowTimer = setTimeout(() => setSlowSubmit(true), SLOW_MS);
     try {
       await signIn(email, password);
       // Continue wherever RequireAuth interrupted them, if it did. A staff
@@ -31,6 +41,8 @@ export function LoginScreen() {
     } catch (caught) {
       setError(caught as ApiError);
     } finally {
+      clearTimeout(slowTimer);
+      setSlowSubmit(false);
       setSubmitting(false);
     }
   }
@@ -49,6 +61,7 @@ export function LoginScreen() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <WakeNotice state={serverState === "ready" && slowSubmit ? "waking" : serverState} />
         <FormError error={error} />
 
         <div className="space-y-2">
@@ -78,7 +91,7 @@ export function LoginScreen() {
         </div>
 
         <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? "Signing in…" : "Sign in"}
+          {submitting ? (slowSubmit ? "Waiting for the server…" : "Signing in…") : "Sign in"}
         </Button>
       </form>
     </AuthLayout>

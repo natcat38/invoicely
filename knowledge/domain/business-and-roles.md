@@ -52,6 +52,13 @@ token stamped after the change.
 New staff receive a generated temporary password, shown once, and cannot reach
 any endpoint but `POST /auth/change-password` until they replace it.
 
+Public demo logins are the one exception to "an owner can deactivate staff" and
+"anyone can change their own password". With the `demo` profile active, the two
+seeded accounts (`invoicely.demo.owner-email` / `staff-email`) cannot have
+their password changed or be deactivated: both answer 403 with problem type
+`demo-account-protected`. Their password is public, so without this one visitor
+could lock out every other. Accounts registered normally are unaffected.
+
 # Citations
 
 `docs/Invoice_Product_Scope.md` §3 · `docs/Invoice_Tech_Scope.md` Task 4 ·
@@ -59,5 +66,6 @@ any endpoint but `POST /auth/change-password` until they replace it.
 `docs/adr/0002-jwt-shape-and-storage.md` (what the token carries, and why so
 little) · `docs/adr/0003-temporary-password-flow.md` (how staff get their first
 credential) · `docs/adr/0010-session-invalidation-and-login-throttling.md` (why
-deactivation is 403, and what a password change invalidates).
+deactivation is 403, and what a password change invalidates) ·
+`docs/adr/0013-protect-demo-accounts.md` (why the shared demo logins are locked down).
 Transitions gated by role: [Invoice lifecycle](/domain/invoice-lifecycle.md).

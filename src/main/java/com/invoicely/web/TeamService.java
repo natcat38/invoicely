@@ -36,17 +36,20 @@ public class TeamService {
     private final InvoiceRepository invoices;
     private final CurrentRequest currentRequest;
     private final PasswordEncoder passwordEncoder;
+    private final DemoAccountGuard demoAccountGuard;
 
     TeamService(UserRepository users,
                 BusinessRepository businesses,
                 InvoiceRepository invoices,
                 CurrentRequest currentRequest,
-                PasswordEncoder passwordEncoder) {
+                PasswordEncoder passwordEncoder,
+                DemoAccountGuard demoAccountGuard) {
         this.users = users;
         this.businesses = businesses;
         this.invoices = invoices;
         this.currentRequest = currentRequest;
         this.passwordEncoder = passwordEncoder;
+        this.demoAccountGuard = demoAccountGuard;
     }
 
     /**
@@ -146,12 +149,17 @@ public class TeamService {
      * @throws ConflictException if the owner is targeting their own account for
      *         deactivation — a business with no active owner would be locked
      *         out of everything owner-only, including undoing this
+     * @throws DemoAccountProtectedException if the target is a seeded public
+     *         demo account and the request is to deactivate it
      */
     StaffResponse setActive(Long id, boolean active) {
         User user = load(id);
         if (!active && user.getId().equals(currentRequest.userId())) {
             throw new ConflictException("cannot-deactivate-self",
                     "You cannot deactivate your own account.");
+        }
+        if (!active) {
+            demoAccountGuard.rejectDeactivation(user);
         }
         user.setActive(active);
         // No save() call: user is managed inside this transaction, so

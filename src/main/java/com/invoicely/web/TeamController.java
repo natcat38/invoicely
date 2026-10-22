@@ -65,7 +65,8 @@ class TeamController {
     @Operation(summary = "Deactivate or reactivate a team member")
     @ApiResponse(responseCode = "200", description = "Member's active flag updated.")
     @ApiResponse(responseCode = "400", description = "Validation failed (active is required).")
-    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER.")
+    @ApiResponse(responseCode = "403", description = "Caller is STAFF, not OWNER; or (demo profile only) the "
+            + "target is a seeded public demo account, which cannot be deactivated.")
     @ApiResponse(responseCode = "404", description = "No such team member, or they belong to another business.")
     @ApiResponse(responseCode = "409", description = "The owner tried to deactivate their own account.")
     @PreAuthorize("hasRole('OWNER')")

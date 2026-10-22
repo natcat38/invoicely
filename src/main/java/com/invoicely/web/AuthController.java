@@ -64,6 +64,8 @@ class AuthController {
     @ApiResponse(responseCode = "200", description = "Password changed; a fresh token is issued.")
     @ApiResponse(responseCode = "400", description = "Validation failed, or the new password is too long for BCrypt.")
     @ApiResponse(responseCode = "401", description = "No/invalid token, or currentPassword does not match.")
+    @ApiResponse(responseCode = "403", description = "The caller is a seeded public demo account "
+            + "(demo profile only), whose password is shared and cannot be changed.")
     @PostMapping("/change-password")
     AuthResponse changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         return authService.changePassword(request);

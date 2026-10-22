@@ -335,9 +335,9 @@ public class DemoDataSeeder implements ApplicationRunner {
      *                    nobody can safely point at the internet.
      */
     @ConfigurationProperties(prefix = "invoicely.demo")
-    record DemoDataProperties(String ownerEmail, String staffEmail, String password) {
+    public record DemoDataProperties(String ownerEmail, String staffEmail, String password) {
 
-        DemoDataProperties {
+        public DemoDataProperties {
             if (ownerEmail == null || ownerEmail.isBlank()) {
                 ownerEmail = "owner@invoicely.demo";
             }
