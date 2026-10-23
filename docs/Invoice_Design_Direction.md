@@ -68,7 +68,11 @@ document. The document looks the same wherever it appears.
 ## Quality floor
 
 Visible keyboard focus, labelled forms, contrast ≥ 4.5:1, responsive to 375px
-(tables scroll inside their container; the page never scrolls horizontally).
+(the page never scrolls horizontally). Invoice lists are cards below `sm`
+(number and status, client, total and due date) and a table from `sm`, where
+the table scrolls inside its container (decided 2026-10-23). Touch targets are
+44px on phones (inputs, buttons, tabs, selects) and unchanged from `md`; the
+first tab stop on every page is a "Skip to content" link.
 
 ## Provenance
 

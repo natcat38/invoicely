@@ -49,9 +49,16 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  returnFocusTo,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /**
+   * Where focus goes when the dialog closes. Radix returns it to the trigger
+   * on its own, but a dialog opened from ordinary state (no `DialogTrigger`)
+   * has no trigger to return to, and focus would fall to the page body.
+   */
+  returnFocusTo?: React.RefObject<HTMLElement | null>
 }) {
   return (
     <DialogPortal>
@@ -63,6 +70,15 @@ function DialogContent({
           className
         )}
         {...props}
+        onCloseAutoFocus={(event) => {
+          props.onCloseAutoFocus?.(event)
+          // The target can be gone by now (the action changed the invoice's
+          // status and its button with it); then Radix's default stands.
+          if (returnFocusTo?.current) {
+            event.preventDefault()
+            returnFocusTo.current.focus()
+          }
+        }}
       >
         {children}
         {showCloseButton && (

@@ -37,16 +37,19 @@ export function PaymentDialog({
   invoice,
   open,
   onOpenChange,
+  returnFocusTo,
 }: {
   invoice: Invoice;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Where focus goes when the dialog closes; see `DialogContent`. */
+  returnFocusTo?: React.RefObject<HTMLElement | null>;
 }) {
   // Keyed by the balance so that reopening the dialog after a partial payment
   // pre-fills the *new* remaining balance rather than the stale one.
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent returnFocusTo={returnFocusTo}>
         <PaymentForm key={invoice.balance} invoice={invoice} onDone={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>

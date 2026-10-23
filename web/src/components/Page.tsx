@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -52,14 +53,23 @@ export function EmptyState({
 }
 
 /**
- * A plain "Loading…", not a shimmering skeleton — the Design Direction rules
- * skeletons out explicitly. `role="status"` so a screen reader announces the
- * wait instead of falling silent.
+ * A plain "Loading…". `role="status"` so a screen reader announces the wait
+ * instead of falling silent.
+ *
+ * <p>It reserves about the height of a short list, so the page does not jump
+ * when the data arrives, and after a second it says "Still loading…" so a slow
+ * request (a sleeping demo server, a bad connection) does not look frozen.
  */
 export function Loading({ label = "Loading…" }: { label?: string }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <p role="status" className="px-6 py-12 text-center text-app-muted">
-      {label}
+    <p role="status" className="grid min-h-64 place-content-center px-6 text-center text-app-muted">
+      {slow ? "Still loading…" : label}
     </p>
   );
 }
@@ -84,7 +94,7 @@ export function LoadError({ error, onRetry }: { error: ApiError; onRetry?: () =>
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 text-sm font-medium text-app-accent underline-offset-4 hover:underline"
+          className="mt-4 inline-flex min-h-11 items-center text-sm font-medium text-app-accent underline-offset-4 hover:underline md:min-h-0"
         >
           Try again
         </button>

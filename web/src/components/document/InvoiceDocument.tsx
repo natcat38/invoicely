@@ -84,7 +84,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
         </div>
 
         <div className="text-right">
-          <p className="text-xs uppercase tracking-[0.2em] text-ink/50">Invoice</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-ink/65">Invoice</p>
           {/* The one place Fraunces appears in the product. */}
           <p className="font-serif text-3xl leading-tight text-ink">{invoice.number}</p>
         </div>
@@ -92,7 +92,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
 
       <div className="mt-8 flex flex-wrap justify-between gap-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-ink/50">Bill to</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-ink/65">Bill to</p>
           <p className="mt-1 font-medium">{invoice.client.name || "—"}</p>
           {invoice.client.contactPerson ? (
             <p className="text-sm text-ink/70">{invoice.client.contactPerson}</p>
@@ -114,11 +114,11 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
 
         <dl className="text-sm">
           <div className="flex justify-between gap-8">
-            <dt className="text-ink/50">Issue date</dt>
+            <dt className="text-ink/65">Issue date</dt>
             <dd className="font-mono">{date(invoice.issueDate)}</dd>
           </div>
           <div className="mt-1 flex justify-between gap-8">
-            <dt className="text-ink/50">Due date</dt>
+            <dt className="text-ink/65">Due date</dt>
             {invoice.dueDate ? (
               <dd className="font-mono">{date(invoice.dueDate)}</dd>
             ) : (
@@ -139,13 +139,13 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
           stacked form just as a phone does. */}
       <div className="@container mt-8">
         <div className="@lg:hidden">
-          <div className="flex justify-between border-b border-ink/30 pb-2 text-xs uppercase tracking-[0.12em] text-ink/50">
+          <div className="flex justify-between border-b border-ink/30 pb-2 text-xs uppercase tracking-[0.12em] text-ink/65">
             <span className="font-medium">Description</span>
             <span className="font-medium">Amount</span>
           </div>
           <ul>
             {invoice.lines.length === 0 ? (
-              <li className="border-b border-paper-rule py-6 text-center text-sm text-ink/40">
+              <li className="border-b border-paper-rule py-6 text-center text-sm text-ink/65">
                 No lines yet.
               </li>
             ) : (
@@ -153,7 +153,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
                 // Index key is safe for the same reason as in the table below.
                 <li key={index} className="border-b border-paper-rule py-3 text-sm">
                   <p className="break-words">
-                    {line.description || <span className="text-ink/40">—</span>}
+                    {line.description || <span className="text-ink/65">—</span>}
                   </p>
                   <p className="mt-1 flex justify-between gap-4 font-mono">
                     <span className="text-ink/70">
@@ -169,7 +169,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
 
         <table className="hidden w-full border-collapse text-sm @lg:table">
           <thead>
-            <tr className="border-b border-ink/30 text-left text-xs uppercase tracking-[0.12em] text-ink/50">
+            <tr className="border-b border-ink/30 text-left text-xs uppercase tracking-[0.12em] text-ink/65">
               <th scope="col" className="pb-2 font-medium">Description</th>
               <th scope="col" className="pb-2 pl-4 text-right font-medium">Qty</th>
               <th scope="col" className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Unit price</th>
@@ -179,7 +179,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
           <tbody>
             {invoice.lines.length === 0 ? (
               <tr className="border-b border-paper-rule">
-                <td colSpan={4} className="py-6 text-center text-ink/40">
+                <td colSpan={4} className="py-6 text-center text-ink/65">
                   No lines yet.
                 </td>
               </tr>
@@ -193,7 +193,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
                 // from the middle. The builder's *inputs* are a different
                 // matter, and are controlled for that reason.
                 <tr key={index} className="border-b border-paper-rule align-top">
-                  <td className="py-2 pr-4">{line.description || <span className="text-ink/40">—</span>}</td>
+                  <td className="py-2 pr-4">{line.description || <span className="text-ink/65">—</span>}</td>
                   <td className="py-2 pl-4 text-right font-mono">{formatQuantity(line.quantity)}</td>
                   <td className="py-2 pl-4 text-right font-mono">{amount(line.unitPrice)}</td>
                   <td className="py-2 pl-4 text-right font-mono">{amount(line.lineTotal)}</td>
@@ -244,7 +244,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
 
       {invoice.client.paymentNotes ? (
         <footer className="mt-10 border-t border-paper-rule pt-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-ink/50">How to pay</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-ink/65">How to pay</p>
           {/* Free text the business wrote — PayNow or bank details, usually.
               whitespace-pre-line keeps the line breaks they typed, which is
               what makes an account number readable. */}

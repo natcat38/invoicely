@@ -21,7 +21,9 @@ const queryClient = new QueryClient({
         if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
           return false;
         }
-        return failureCount < 2;
+        // One retry, not two: a real outage then shows its error after about
+        // a second instead of three, while a dropped packet still heals.
+        return failureCount < 1;
       },
       // Invoices change when this user changes them, not on a timer, so
       // refetching on every window focus is noise. Screens that mutate data
