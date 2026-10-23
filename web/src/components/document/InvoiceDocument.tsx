@@ -51,7 +51,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
     // the document off the app's off-white page without a drop shadow, which
     // would read as a card in the app layer rather than as a sheet of paper.
     <article
-      className="relative overflow-hidden border border-paper-rule bg-paper p-8 text-ink sm:p-10"
+      className="relative overflow-hidden border border-paper-rule bg-paper p-5 text-ink sm:p-10"
       // The status is part of the label so the document describes itself to a
       // screen reader. That is what lets the stamp stay aria-hidden: it is a
       // visual restatement of something already announced here, and reading
@@ -124,16 +124,51 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
       </div>
 
       {/* The ledger. Horizontal rules only, per the Design Direction —
-          vertical borders would turn it into a spreadsheet. Wrapped so a long
-          description scrolls the table rather than the page on a phone. */}
-      <div className="mt-8 overflow-x-auto">
-        <table className="w-full min-w-[30rem] border-collapse text-sm">
+          vertical borders would turn it into a spreadsheet. Two renderings of
+          the same lines: four columns do not fit on a narrow paper, and a
+          table that scrolls sideways hides the Amount column, so there each
+          line stacks instead (description, then quantity × price and the
+          amount). Both are in the page. This wrapper is a size container, so
+          the width of the paper itself decides which one shows, not the width
+          of the screen: the builder's half-width preview on a laptop needs the
+          stacked form just as a phone does. */}
+      <div className="@container mt-8">
+        <div className="@lg:hidden">
+          <div className="flex justify-between border-b border-ink/30 pb-2 text-xs uppercase tracking-[0.12em] text-ink/50">
+            <span className="font-medium">Description</span>
+            <span className="font-medium">Amount</span>
+          </div>
+          <ul>
+            {invoice.lines.length === 0 ? (
+              <li className="border-b border-paper-rule py-6 text-center text-sm text-ink/40">
+                No lines yet.
+              </li>
+            ) : (
+              invoice.lines.map((line, index) => (
+                // Index key is safe for the same reason as in the table below.
+                <li key={index} className="border-b border-paper-rule py-3 text-sm">
+                  <p className="break-words">
+                    {line.description || <span className="text-ink/40">—</span>}
+                  </p>
+                  <p className="mt-1 flex justify-between gap-4 font-mono">
+                    <span className="text-ink/70">
+                      {formatQuantity(line.quantity)} × {amount(line.unitPrice)}
+                    </span>
+                    <span>{amount(line.lineTotal)}</span>
+                  </p>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+
+        <table className="hidden w-full border-collapse text-sm @lg:table">
           <thead>
             <tr className="border-b border-ink/30 text-left text-xs uppercase tracking-[0.12em] text-ink/50">
               <th scope="col" className="pb-2 font-medium">Description</th>
-              <th scope="col" className="pb-2 text-right font-medium">Qty</th>
-              <th scope="col" className="pb-2 text-right font-medium">Unit price</th>
-              <th scope="col" className="pb-2 text-right font-medium">Amount</th>
+              <th scope="col" className="pb-2 pl-4 text-right font-medium">Qty</th>
+              <th scope="col" className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Unit price</th>
+              <th scope="col" className="pb-2 pl-4 text-right font-medium">Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -154,9 +189,9 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
                 // matter, and are controlled for that reason.
                 <tr key={index} className="border-b border-paper-rule align-top">
                   <td className="py-2 pr-4">{line.description || <span className="text-ink/40">—</span>}</td>
-                  <td className="py-2 text-right font-mono">{formatQuantity(line.quantity)}</td>
-                  <td className="py-2 text-right font-mono">{amount(line.unitPrice)}</td>
-                  <td className="py-2 text-right font-mono">{amount(line.lineTotal)}</td>
+                  <td className="py-2 pl-4 text-right font-mono">{formatQuantity(line.quantity)}</td>
+                  <td className="py-2 pl-4 text-right font-mono">{amount(line.unitPrice)}</td>
+                  <td className="py-2 pl-4 text-right font-mono">{amount(line.lineTotal)}</td>
                 </tr>
               ))
             )}

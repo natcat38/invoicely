@@ -233,8 +233,8 @@ function Builder({ existing }: { existing?: Invoice }) {
 
       {/* The split. `items-start` so the document does not stretch to match the
           form's height — it is a sheet of paper, not a column. */}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-2 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        <Card className="min-w-0">
           <CardContent className="space-y-4 p-6">
             <div className="space-y-2">
               <Label htmlFor="client">Client</Label>
@@ -325,7 +325,7 @@ function Builder({ existing }: { existing?: Invoice }) {
 
         {/* The live document. Everything above is app chrome; this is the
             thing the client will actually receive. */}
-        <div>
+        <div className="min-w-0">
           <p className="mb-2 text-sm text-app-muted">Preview</p>
           <InvoiceDocument
             invoice={{

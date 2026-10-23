@@ -121,7 +121,7 @@ export function InvoiceDetailScreen() {
  */
 function StatCards({ invoice }: { invoice: Invoice }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-3 sm:gap-4">
       <Stat label="Total" value={money(invoice.total)} />
       <Stat label="Paid" value={money(invoice.amountPaid)} />
       <Stat
@@ -146,11 +146,14 @@ function Stat({
   tone?: "normal" | "overdue";
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
+    // Below `sm` each stat is one short row (label left, figure right) so the
+    // three of them take about a third of the height they did as stacked
+    // cards; from `sm` up they are the usual three side-by-side cards.
+    <Card className="py-0 sm:py-(--card-spacing)">
+      <CardContent className="flex items-baseline justify-between gap-2 p-3 sm:block sm:p-4">
         <p className="text-sm text-app-muted">{label}</p>
         <p
-          className={`mt-1 font-mono text-xl ${
+          className={`font-mono text-lg sm:mt-1 sm:text-xl ${
             tone === "overdue" ? "text-stamp-overdue" : "text-app-text"
           }`}
         >

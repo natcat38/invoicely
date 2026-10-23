@@ -32,6 +32,9 @@ document. The document looks the same wherever it appears.
 - Type: **Fraunces** for the invoice number, Inter for body, JetBrains Mono
   tabular for all figures.
 - Ruled ledger table: horizontal rules only; text left, numbers right.
+  On a narrow paper (under 32rem wide: a phone, or the builder's half-width
+  preview on a laptop) each line stacks instead: description, then
+  `qty × unit price` and the amount on one row. Same rules, same figures.
 - Totals block: subtotal → GST 9% → total SGD → payments → balance due.
 - **The stamp**: rotated −3°, letterspaced mono, red OVERDUE / green PAID on
   the document only; DRAFT and SENT are quiet outline badges in the app chrome.
