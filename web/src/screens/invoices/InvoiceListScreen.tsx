@@ -57,15 +57,20 @@ export function InvoiceListScreen() {
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
-          <TabsList>
-            {STATUS_FILTERS.map((value) => (
-              <TabsTrigger key={value} value={value}>
-                {value === "ALL" ? "All" : statusLabel(value)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        {/* Six tabs are wider than a phone. The wrapper lets the row scroll
+            on its own, and `min-w-max` stops the list squeezing its tabs, so
+            the page itself never scrolls sideways. */}
+        <div className="max-w-full overflow-x-auto">
+          <Tabs value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
+            <TabsList className="min-w-max">
+              {STATUS_FILTERS.map((value) => (
+                <TabsTrigger key={value} value={value}>
+                  {value === "ALL" ? "All" : statusLabel(value)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
 
         <Select
           // "" isn't a valid Radix Select value (it means "unset"), so "all"
