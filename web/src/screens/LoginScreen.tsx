@@ -7,12 +7,13 @@ import { SLOW_MS } from "@/lib/serverWake";
 import { AuthLayout } from "./AuthLayout";
 import { FormError } from "./FormError";
 import { WakeNotice } from "./WakeNotice";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, sessionExpired } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -61,6 +62,13 @@ export function LoginScreen() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {/* Said once, plainly: otherwise an expired token just looks like the
+            app threw the user out for no reason. */}
+        {sessionExpired ? (
+          <Alert role="status">
+            <AlertDescription>Your session ended. Sign in again.</AlertDescription>
+          </Alert>
+        ) : null}
         <WakeNotice state={serverState === "ready" && slowSubmit ? "waking" : serverState} />
         <FormError error={error} />
 

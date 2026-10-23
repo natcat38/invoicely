@@ -19,7 +19,7 @@ import { useAuth } from "@/auth/useAuth";
  * finally gets used.
  */
 export function useApiClient() {
-  const { session, signOut } = useAuth();
+  const { session, expireSession } = useAuth();
   const token = session?.token ?? null;
 
   return useCallback(
@@ -30,14 +30,14 @@ export function useApiClient() {
         // An expired token, one superseded by a password change, or a
         // deactivated account: none of these get better by retrying, and
         // leaving the user on a screen that quietly fails every request is
-        // worse than putting them back on the login page. Signing out also
-        // clears the query cache, so nothing stale survives into the next
-        // session.
-        if (error instanceof ApiError && error.requiresReauthentication) signOut();
+        // worse than putting them back on the login page. Ending the session
+        // also clears the query cache, so nothing stale survives into the next
+        // one, and flags it as expired so the login page can explain.
+        if (error instanceof ApiError && error.requiresReauthentication) expireSession();
         throw error;
       }
     },
-    [token, signOut],
+    [token, expireSession],
   );
 }
 

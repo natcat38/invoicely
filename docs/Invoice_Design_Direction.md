@@ -22,6 +22,12 @@ document. The document looks the same wherever it appears.
   amounts in cards and tables.
 - Layout: fixed dark sidebar (Dashboard, Invoices, Clients, Team, Settings),
   content area with breadcrumb + page header + actions right-aligned.
+  Below `md` (phones) the sidebar becomes a 56px sticky top bar (wordmark,
+  current section, menu button); the menu opens the same brand, nav, user and
+  Sign out in a sheet (decided 2026-10-23).
+- Identity: each route sets its own browser tab title ("Invoices - Invoicely").
+  Link previews use a generated card, the wordmark and the README's one-line
+  pitch on the sidebar navy (`web/og-card/`, decided 2026-10-23); no logo mark.
 - Components lean on shadcn/ui patterns (cards, badges, tables, dialogs).
 
 ## Document layer tokens (variant A)
@@ -46,6 +52,8 @@ document. The document looks the same wherever it appears.
 - Invoice **builder** (DRAFT): app-layer form panels on the left/top; the
   document preview updates live as line items change — the maker sees what the
   client will get. Staff see "Submit for approval"; owner sees "Approve & send".
+  The header with Cancel and Create stays pinned (top from `md`, a bottom bar
+  on phones) and field mistakes show under the field they belong to.
 - Client-facing rendering (v2: PDF export/public link) reuses the document
   layer unchanged.
 

@@ -53,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const [restoring, setRestoring] = useState(() => readStoredToken() !== null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     writeStoredToken(null);
     setSession(null);
     setMustChangePassword(false);
+    setSessionExpired(false);
     // Throw away every cached response as well as the token. TanStack Query
     // keys by query, not by user, so without this the next person to sign in
     // on this browser would be served the previous user's cached clients and
@@ -70,7 +72,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
   }, [queryClient]);
 
+  // The API ended this session, not the user. Same clean-up as signing out,
+  // plus a flag so the login page can say what happened instead of appearing
+  // out of nowhere.
+  const expireSession = useCallback(() => {
+    clearSession();
+    setSessionExpired(true);
+  }, [clearSession]);
+
   const acceptToken = useCallback((response: AuthResponse) => {
+    setSessionExpired(false);
     writeStoredToken(response.token);
     setSession(sessionFrom(response));
     setMustChangePassword(response.mustChangePassword);
@@ -107,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // it here is what stops a superseded or expired token from producing
         // a failed request on every screen the user visits.
         writeStoredToken(null);
+        setSessionExpired(true);
       })
       .finally(() => {
         if (!aborter.signal.aborted) setRestoring(false);
@@ -159,12 +171,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       restoring,
       mustChangePassword,
+      sessionExpired,
       signIn,
       register,
       changePassword,
       signOut: clearSession,
+      expireSession,
     }),
-    [session, restoring, mustChangePassword, signIn, register, changePassword, clearSession],
+    [
+      session,
+      restoring,
+      mustChangePassword,
+      sessionExpired,
+      signIn,
+      register,
+      changePassword,
+      clearSession,
+      expireSession,
+    ],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

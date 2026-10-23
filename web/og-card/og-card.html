@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  Source for public/og.png, the link-preview card. Not part of the app build.
+  The wordmark and the pitch are the ones already in the app and the README;
+  the background is the sidebar navy (--color-app-sidebar).
+
+  To regenerate: open this file in Chromium at a 1200x630 viewport and take a
+  screenshot, saved as web/public/og.png. The fonts load from node_modules,
+  so run `npm ci` first.
+-->
+<html lang="en-SG">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face {
+        font-family: "Fraunces";
+        src: url("../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2") format("woff2");
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("../node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+      }
+      html, body { margin: 0; }
+      body {
+        width: 1200px;
+        height: 630px;
+        box-sizing: border-box;
+        padding: 96px 104px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 28px;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .wordmark { margin: 0; font: 400 148px/1 "Fraunces", Georgia, serif; color: #fff; }
+      .pitch { margin: 0; max-width: 940px; text-wrap: balance; font: 400 40px/1.35 "Inter", system-ui, sans-serif; color: #e2e8f0; }
+    </style>
+  </head>
+  <body>
+    <p class="wordmark">Invoicely</p>
+    <p class="pitch">Invoicing for a small Singapore business with more than one person touching money.</p>
+  </body>
+</html>
