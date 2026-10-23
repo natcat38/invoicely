@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 /**
@@ -61,16 +62,57 @@ export function EmptyState({
  * request (a sleeping demo server, a bad connection) does not look frozen.
  */
 export function Loading({ label = "Loading…" }: { label?: string }) {
-  const [slow, setSlow] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setSlow(true), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  const slow = useSlow();
 
   return (
     <p role="status" className="grid min-h-64 place-content-center px-6 text-center text-app-muted">
       {slow ? "Still loading…" : label}
     </p>
+  );
+}
+
+/** True once a wait has lasted a second, so a slow request can say so. */
+function useSlow(): boolean {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+  return slow;
+}
+
+/**
+ * Placeholder rows for a table that is still loading (decided 2026-10-24:
+ * skeletons on tables only; everything else keeps the plain `Loading` line).
+ * The rows are about as tall as the real ones, so the list does not jump when
+ * it arrives, and there are no columns to match because the table is a table
+ * on a laptop and cards on a phone.
+ *
+ * <p>The words stay for screen readers and for the slow case: the bars are
+ * `aria-hidden`, and a line under them changes to "Still loading…" after a
+ * second. Its space is always reserved.
+ */
+export function TableSkeleton({ rows = 5, label = "Loading…" }: { rows?: number; label?: string }) {
+  const slow = useSlow();
+
+  return (
+    <div role="status">
+      <div className="rounded-lg border border-app-border bg-app-surface">
+        {Array.from({ length: rows }, (_, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-4 border-b border-app-border px-4 py-5 last:border-b-0"
+          >
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="hidden h-4 w-20 sm:block" />
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 min-h-5 text-center text-sm text-app-muted">{slow ? "Still loading…" : ""}</p>
+      <span className="sr-only">{label}</span>
+    </div>
   );
 }
 

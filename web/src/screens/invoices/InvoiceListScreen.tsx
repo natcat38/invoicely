@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { InvoiceCards } from "@/components/InvoiceCards";
-import { EmptyState, LoadError, Loading, PageHeader } from "@/components/Page";
+import { EmptyState, LoadError, PageHeader, TableSkeleton } from "@/components/Page";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,7 +94,7 @@ export function InvoiceListScreen() {
         </Select>
       </div>
 
-      {invoices.isPending ? <Loading /> : null}
+      {invoices.isPending ? <TableSkeleton label="Loading invoices…" /> : null}
 
       {invoices.isError ? (
         <LoadError error={invoices.error} onRetry={() => invoices.refetch()} />

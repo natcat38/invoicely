@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { InvoiceCards } from "@/components/InvoiceCards";
-import { EmptyState, LoadError, Loading, PageHeader } from "@/components/Page";
+import { EmptyState, LoadError, Loading, PageHeader, TableSkeleton } from "@/components/Page";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -135,7 +135,7 @@ export function DashboardScreen() {
             error. It simply shows nothing, and the Invoices page reports the
             failure properly if it persists. */}
         {recent.isPending ? (
-          <Loading label="Loading invoices…" />
+          <TableSkeleton rows={3} label="Loading invoices…" />
         ) : recent.data && recent.data.content.length > 0 ? (
           <InvoiceRows invoices={recent.data.content} />
         ) : recent.isSuccess ? (

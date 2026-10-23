@@ -63,7 +63,13 @@ document. The document looks the same wherever it appears.
 - Errors surface Problem Details text where user-appropriate.
 - One motion moment: the stamp presses onto the document when an invoice
   becomes PAID (scale 1.15→1, ease-out); `prefers-reduced-motion` disables it.
-  No scroll animations; plain "Loading…" rows, no skeleton shimmer.
+  No scroll animations. Loading is a plain "Loading…" line, except tables:
+  invoice list, dashboard, clients and team show skeleton rows (a still bar,
+  pulsing only without `prefers-reduced-motion`, no shimmer) — decided
+  2026-10-24, reversing the earlier "no skeletons" rule for tables only. After
+  a second the wait says "Still loading…".
+- Send and Approve & send ask first: "Send INV-… to <client> for S$X? The GST
+  and invoice number will lock." (decided 2026-10-24).
 
 ## Quality floor
 
