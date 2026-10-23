@@ -1,3 +1,4 @@
+import { usePageTitle } from "@/lib/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
@@ -20,6 +21,7 @@ export function AuthLayout({
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
+  usePageTitle(title);
   return (
     <div className="grid min-h-dvh place-items-center bg-app-bg p-4">
       <div className="w-full max-w-sm space-y-6">

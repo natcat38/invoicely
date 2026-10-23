@@ -19,6 +19,12 @@ export type AuthContextValue = {
   restoring: boolean;
   /** True when the signed-in user is still on a temporary password. */
   mustChangePassword: boolean;
+  /**
+   * True when the last session ended because the API refused its token (it
+   * expired, was superseded, or the account was switched off) rather than
+   * because the user signed out. The login page uses it to say so.
+   */
+  sessionExpired: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -29,6 +35,8 @@ export type AuthContextValue = {
    * second method for it.
    */
   signOut: () => void;
+  /** Like `signOut`, but remembers that the user did not choose it. */
+  expireSession: () => void;
 };
 
 export type RegisterInput = {

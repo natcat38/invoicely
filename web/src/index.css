@@ -241,6 +241,20 @@
   }
 
   /*
+   * Keeps a focused control clear of the sticky bars (the phone top bar, the
+   * builder's header, its bottom action bar) when the browser scrolls it into
+   * view, so focus is never hidden behind one (WCAG 2.4.11).
+   */
+  input,
+  select,
+  textarea,
+  button,
+  a,
+  [tabindex="-1"] {
+    scroll-margin-block: 5rem;
+  }
+
+  /*
    * Headings wrap into even lines rather than leaving one orphaned word on
    * the last line. Cheap, and it is most visible on the short two- and
    * three-word titles this app is full of.

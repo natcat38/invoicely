@@ -5,6 +5,7 @@ import { InvoiceDocument } from "@/components/document/InvoiceDocument";
 import { Loading, LoadError } from "@/components/Page";
 import { StatusBadge } from "@/components/StatusBadge";
 import { date, methodLabel, money } from "@/lib/format";
+import { usePageTitle } from "@/lib/usePageTitle";
 import type { Invoice } from "@/lib/types";
 import { InvoiceActions } from "./InvoiceActions";
 import { PaymentDialog } from "./PaymentDialog";
@@ -27,6 +28,7 @@ export function InvoiceDetailScreen() {
   const [payingOpen, setPayingOpen] = useState(false);
 
   const invoice = useInvoice(invoiceId);
+  usePageTitle(invoice.data?.number ?? "Invoice");
   // Only the owner may read payments (the API answers 403 for staff), so the
   // request is not made at all for staff rather than made and swallowed.
   const isOwner = session!.user.role === "OWNER";

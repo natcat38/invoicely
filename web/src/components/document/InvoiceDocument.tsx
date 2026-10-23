@@ -23,7 +23,8 @@ export type InvoiceDocumentModel = {
   number: string;
   status: InvoiceStatus;
   issueDate: string;
-  dueDate: string;
+  /** Null while it is not known yet (a staff member's unsaved draft). */
+  dueDate: string | null;
   business: { name: string; address: string | null; uen: string | null; gstRegistered: boolean };
   client: {
     name: string;
@@ -118,7 +119,11 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentModel }) 
           </div>
           <div className="mt-1 flex justify-between gap-8">
             <dt className="text-ink/50">Due date</dt>
-            <dd className="font-mono">{date(invoice.dueDate)}</dd>
+            {invoice.dueDate ? (
+              <dd className="font-mono">{date(invoice.dueDate)}</dd>
+            ) : (
+              <dd className="text-right text-ink/70">Set by payment terms on save</dd>
+            )}
           </div>
         </dl>
       </div>

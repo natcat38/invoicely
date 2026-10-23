@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api";
 import { todayInSingapore } from "@/lib/format";
 import { useApiQuery, keys } from "@/lib/hooks";
 import { previewLineTotal, previewTotals } from "@/lib/preview-totals";
+import { usePageTitle } from "@/lib/usePageTitle";
 import type { Client, Invoice, Page, SettingsResponse } from "@/lib/types";
 import { useCreateInvoice, useInvoice, useUpdateInvoice } from "./useInvoice";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,67 @@ const ACTIVE_CLIENTS_QUERY = "archived=false&size=200";
 type LineDraft = { description: string; quantity: string; unitPrice: string };
 
 const BLANK_LINE: LineDraft = { description: "", quantity: "1", unitPrice: "" };
+
+/**
+ * Field problems, keyed by the id of the input they belong to ("client",
+ * "line-0-description", "line-2-unitPrice"). Using the element id as the key
+ * means the same string finds the message, wires `aria-describedby`, and
+ * lets us focus the first bad field.
+ */
+type FieldErrors = Record<string, string>;
+
+/** Digits with an optional fraction of at most `maxDecimals` places: "2", "1.5", ".5". */
+function isDecimal(text: string, maxDecimals: number): boolean {
+  return new RegExp(`^(\\d+|\\d*\\.\\d{1,${maxDecimals}})$`).test(text.trim());
+}
+
+/**
+ * The checks the API would make, run before the request so a typo does not
+ * cost a round trip. The API stays the authority: it still validates, and its
+ * answers are shown the same way (see `fromApi`).
+ */
+function validate(clientId: string, lines: LineDraft[]): FieldErrors {
+  const found: FieldErrors = {};
+  if (!clientId) found.client = "Choose a client.";
+  lines.forEach((line, index) => {
+    if (!line.description.trim()) {
+      found[`line-${index}-description`] = "Describe what is being billed.";
+    }
+    if (!isDecimal(line.quantity, 4) || Number(line.quantity) <= 0) {
+      found[`line-${index}-quantity`] = "Enter a quantity such as 2 or 1.5.";
+    }
+    if (!isDecimal(line.unitPrice, 4)) {
+      found[`line-${index}-unitPrice`] = "Enter a unit price such as 120.00.";
+    }
+  });
+  return found;
+}
+
+/**
+ * Turns the API's field errors ("lineItems[0].description") into the same
+ * keys `validate` uses. `rest` counts the ones with no input to attach to;
+ * those keep the summary banner.
+ */
+function fromApi(error: ApiError): { mapped: FieldErrors; rest: number } {
+  const mapped: FieldErrors = {};
+  let rest = 0;
+  for (const { field, message } of error.fieldErrors) {
+    const line = /^lineItems\[(\d+)\]\.(description|quantity|unitPrice)$/.exec(field);
+    const key = field === "clientId" ? "client" : line ? `line-${line[1]}-${line[2]}` : null;
+    if (key) mapped[key] ??= message;
+    else rest += 1;
+  }
+  return { mapped, rest };
+}
+
+/** The message under a field; `aria-describedby` on the input points at its id. */
+function FieldMessage({ id, errors }: { id: string; errors: FieldErrors }) {
+  return errors[id] ? (
+    <p id={`${id}-error`} className="text-sm text-destructive">
+      {errors[id]}
+    </p>
+  ) : null;
+}
 
 /**
  * The builder — the screen the Design Direction calls the showcase.
@@ -86,6 +148,7 @@ function Builder({ existing }: { existing?: Invoice }) {
   const navigate = useNavigate();
   const { session } = useAuth();
   const isOwner = session!.user.role === "OWNER";
+  usePageTitle(existing ? `Edit ${existing.number}` : "New invoice");
 
   const [clientId, setClientId] = useState<string>(existing ? String(existing.client.id) : "");
   const [issueDate, setIssueDate] = useState(existing?.issueDate ?? todayInSingapore());
@@ -100,6 +163,7 @@ function Builder({ existing }: { existing?: Invoice }) {
       : [{ ...BLANK_LINE }],
   );
   const [error, setError] = useState<ApiError | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // The same key the invoice list uses for this exact request, so the two
   // screens share one cache entry instead of fetching the identical list
@@ -161,6 +225,26 @@ function Builder({ existing }: { existing?: Invoice }) {
   const update = useUpdateInvoice(existing?.id ?? 0);
   const saving = create.isPending || update.isPending;
 
+  /** `id` plus, when the field has a message, the `aria-*` that marks it invalid and points at it. */
+  function invalidProps(id: string) {
+    return fieldErrors[id]
+      ? { id, "aria-invalid": true, "aria-describedby": `${id}-error` }
+      : { id };
+  }
+
+  /** Editing a field clears its own message, so a fixed field stops being red. */
+  function clearError(id: string) {
+    if (fieldErrors[id]) {
+      setFieldErrors(({ [id]: _fixed, ...others }) => others);
+    }
+  }
+
+  /** Moves focus to the first field with a message, once React has drawn it. */
+  function focusFirst(errors: FieldErrors) {
+    const first = Object.keys(errors)[0];
+    if (first) requestAnimationFrame(() => document.getElementById(first)?.focus());
+  }
+
   function updateLine(index: number, patch: Partial<LineDraft>) {
     setLines((current) =>
       current.map((line, position) => (position === index ? { ...line, ...patch } : line)),
@@ -170,6 +254,13 @@ function Builder({ existing }: { existing?: Invoice }) {
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+
+    const found = validate(clientId, lines);
+    setFieldErrors(found);
+    if (Object.keys(found).length > 0) {
+      focusFirst(found);
+      return;
+    }
 
     const body = {
       clientId: Number(clientId),
@@ -189,9 +280,18 @@ function Builder({ existing }: { existing?: Invoice }) {
       toast.success(existing ? `${saved.number} saved.` : `${saved.number} created.`);
       navigate(`/invoices/${saved.id}`, { replace: true });
     } catch (caught) {
-      setError(caught as ApiError);
+      const failure = caught as ApiError;
+      // A field the API named appears under that field; only problems with no
+      // field to sit under (a 409, a 500, a network failure) use the banner.
+      const { mapped, rest } = fromApi(failure);
+      setFieldErrors(mapped);
+      focusFirst(mapped);
+      const onlyFieldProblems = failure.fieldErrors.length > 0 && rest === 0;
+      setError(onlyFieldProblems ? null : failure);
     }
   }
+
+  const problemCount = Object.keys(fieldErrors).length;
 
   if (clients.isPending) return <Loading />;
   if (clients.isError) return <LoadError error={clients.error} onRetry={() => clients.refetch()} />;
@@ -214,16 +314,36 @@ function Builder({ existing }: { existing?: Invoice }) {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-app-text">
-          {existing ? `Edit ${existing.number}` : "New invoice"}
-        </h1>
-        <div className="flex gap-2">
-          <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
+    // pb-24 on a phone keeps the last field clear of the fixed action bar.
+    <form onSubmit={onSubmit} noValidate className="space-y-6 pb-24 md:pb-0">
+      {/* From `md` the header sticks to the top, so Cancel and Create stay in
+          reach however many lines are added. On a phone the page already has a
+          sticky top bar, so the actions go in a bar fixed to the bottom
+          instead (thumb reach, and clear of that bar). */}
+      <header className="flex flex-wrap items-center justify-between gap-4 md:sticky md:top-0 md:z-10 md:bg-app-bg/95 md:py-3 md:backdrop-blur">
+        <div>
+          <h1 className="text-2xl font-semibold text-app-text">
+            {existing ? `Edit ${existing.number}` : "New invoice"}
+          </h1>
+          {/* Always rendered, so a failed submit fills a line that is already
+              reserved instead of pushing the form down. The details are under
+              the fields; this only points at them. */}
+          <p role="status" className="min-h-5 text-sm text-destructive">
+            {problemCount > 0
+              ? `Fix ${problemCount} ${problemCount === 1 ? "field" : "fields"} marked below.`
+              : ""}
+          </p>
+        </div>
+        <div className="fixed inset-x-0 bottom-0 z-20 flex gap-2 border-t border-app-border bg-app-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:z-auto md:border-0 md:bg-transparent md:p-0">
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11 flex-1 md:h-8 md:flex-none"
+            onClick={() => navigate(-1)}
+          >
             Cancel
           </Button>
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving} className="h-11 flex-1 md:h-8 md:flex-none">
             {saving ? "Saving…" : existing ? "Save changes" : "Create invoice"}
           </Button>
         </div>
@@ -238,8 +358,14 @@ function Builder({ existing }: { existing?: Invoice }) {
           <CardContent className="space-y-4 p-6">
             <div className="space-y-2">
               <Label htmlFor="client">Client</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger id="client" className="w-full">
+              <Select
+                value={clientId}
+                onValueChange={(value) => {
+                  setClientId(value);
+                  clearError("client");
+                }}
+              >
+                <SelectTrigger {...invalidProps("client")} className="w-full">
                   <SelectValue placeholder="Choose a client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,6 +376,7 @@ function Builder({ existing }: { existing?: Invoice }) {
                   ))}
                 </SelectContent>
               </Select>
+              <FieldMessage id="client" errors={fieldErrors} />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -269,7 +396,16 @@ function Builder({ existing }: { existing?: Invoice }) {
                   type="date"
                   value={effectiveDueDate}
                   onChange={(event) => setDueDate(event.target.value)}
+                  aria-describedby={effectiveDueDate ? undefined : "dueDate-hint"}
                 />
+                {/* Staff cannot read the payment terms (owner-only), so the
+                    field starts empty. Say who fills it in rather than leave
+                    a blank that looks like a mistake. */}
+                {effectiveDueDate ? null : (
+                  <p id="dueDate-hint" className="text-xs text-app-muted">
+                    Set by your payment terms when the invoice is saved.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -278,25 +414,37 @@ function Builder({ existing }: { existing?: Invoice }) {
               {lines.map((line, index) => (
                 <div key={index} className="grid gap-2 sm:grid-cols-[1fr_5rem_7rem_auto]">
                   <Input
+                    {...invalidProps(`line-${index}-description`)}
                     aria-label={`Description, line ${index + 1}`}
                     placeholder="What is being billed"
                     value={line.description}
-                    onChange={(event) => updateLine(index, { description: event.target.value })}
+                    onChange={(event) => {
+                      updateLine(index, { description: event.target.value });
+                      clearError(`line-${index}-description`);
+                    }}
                   />
                   <Input
+                    {...invalidProps(`line-${index}-quantity`)}
                     aria-label={`Quantity, line ${index + 1}`}
                     className="font-mono"
                     inputMode="decimal"
                     value={line.quantity}
-                    onChange={(event) => updateLine(index, { quantity: event.target.value })}
+                    onChange={(event) => {
+                      updateLine(index, { quantity: event.target.value });
+                      clearError(`line-${index}-quantity`);
+                    }}
                   />
                   <Input
+                    {...invalidProps(`line-${index}-unitPrice`)}
                     aria-label={`Unit price, line ${index + 1}`}
                     className="font-mono"
                     inputMode="decimal"
                     placeholder="0.00"
                     value={line.unitPrice}
-                    onChange={(event) => updateLine(index, { unitPrice: event.target.value })}
+                    onChange={(event) => {
+                      updateLine(index, { unitPrice: event.target.value });
+                      clearError(`line-${index}-unitPrice`);
+                    }}
                   />
                   <Button
                     type="button"
@@ -305,10 +453,21 @@ function Builder({ existing }: { existing?: Invoice }) {
                     // least one, so removing it would only produce a 400.
                     disabled={lines.length === 1}
                     aria-label={`Remove line ${index + 1}`}
-                    onClick={() => setLines((current) => current.filter((_, p) => p !== index))}
+                    onClick={() => {
+                      setLines((current) => current.filter((_, p) => p !== index));
+                      // Messages are keyed by line number, which just shifted.
+                      setFieldErrors({});
+                    }}
                   >
                     Remove
                   </Button>
+                  {/* The messages sit under the whole row: the quantity column
+                      is too narrow to hold a sentence. */}
+                  <div className="space-y-1 sm:col-span-full">
+                    <FieldMessage id={`line-${index}-description`} errors={fieldErrors} />
+                    <FieldMessage id={`line-${index}-quantity`} errors={fieldErrors} />
+                    <FieldMessage id={`line-${index}-unitPrice`} errors={fieldErrors} />
+                  </div>
                 </div>
               ))}
               <Button
@@ -335,7 +494,10 @@ function Builder({ existing }: { existing?: Invoice }) {
               number: existing?.number ?? "Draft",
               status: "DRAFT",
               issueDate: issueDate || todayInSingapore(),
-              dueDate: effectiveDueDate || issueDate || todayInSingapore(),
+              // No fallback to the issue date: for staff the due date is not
+              // known until the server applies the payment terms, and showing
+              // the issue date instead contradicted the saved invoice.
+              dueDate: effectiveDueDate || null,
               business: existing?.business ?? {
                 name: session!.user.businessName,
                 // Address and UEN are owner-only, so a staff member's preview

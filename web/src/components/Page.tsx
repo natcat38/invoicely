@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 /**
  * The header every screen inside the app shell starts with: title on the
@@ -13,6 +14,7 @@ export function PageHeader({
   description?: string;
   actions?: React.ReactNode;
 }) {
+  usePageTitle(title);
   return (
     <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
