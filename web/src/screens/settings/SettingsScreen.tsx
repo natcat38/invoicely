@@ -198,7 +198,7 @@ function SettingsForm({ settings }: { settings: SettingsResponse }) {
             <CardTitle>GST and payment terms</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {/* shadcn's Switch isn't installed, and this screen doesn't
                   get to add components — a native checkbox is genuinely the
                   right call here: it is keyboard-operable and announced by a
@@ -207,13 +207,15 @@ function SettingsForm({ settings }: { settings: SettingsResponse }) {
               <input
                 id="settings-gst-registered"
                 type="checkbox"
-                className="h-4 w-4 cursor-pointer rounded border border-app-border accent-app-accent"
+                className="size-5 cursor-pointer rounded border border-app-border md:size-4 accent-app-accent"
                 checked={gstRegistered}
                 onChange={(event) => setGstRegistered(event.target.checked)}
               />
+              {/* On a phone the label is the 44px target (clicking it ticks the
+                  box); the box itself is only 20px. */}
               <Label
                 htmlFor="settings-gst-registered"
-                className="cursor-pointer"
+                className="min-h-11 cursor-pointer items-center md:min-h-0"
               >
                 GST-registered
               </Label>

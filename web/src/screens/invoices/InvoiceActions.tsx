@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api";
@@ -40,14 +40,18 @@ export function InvoiceActions({
   invoice,
   role,
   onRecordPayment,
+  recordPaymentRef,
 }: {
   invoice: Invoice;
   role: Role;
   onRecordPayment: () => void;
+  /** Attached to "Record payment" so the screen's payment dialog can return focus to it. */
+  recordPaymentRef?: React.Ref<HTMLButtonElement>;
 }) {
   const navigate = useNavigate();
   const lifecycle = useInvoiceLifecycle(invoice.id);
   const [rejecting, setRejecting] = useState(false);
+  const rejectButton = useRef<HTMLButtonElement>(null);
 
   const isOwner = role === "OWNER";
   const { status } = invoice;
@@ -95,7 +99,12 @@ export function InvoiceActions({
 
       {status === "PENDING_APPROVAL" && isOwner ? (
         <>
-          <Button variant="outline" onClick={() => setRejecting(true)} disabled={lifecycle.isPending}>
+          <Button
+            ref={rejectButton}
+            variant="outline"
+            onClick={() => setRejecting(true)}
+            disabled={lifecycle.isPending}
+          >
             Reject
           </Button>
           <Button
@@ -108,13 +117,16 @@ export function InvoiceActions({
       ) : null}
 
       {(status === "SENT" || status === "OVERDUE") && isOwner ? (
-        <Button onClick={onRecordPayment}>Record payment</Button>
+        <Button ref={recordPaymentRef} onClick={onRecordPayment}>
+          Record payment
+        </Button>
       ) : null}
 
       <RejectDialog
         invoice={invoice}
         open={rejecting}
         onOpenChange={setRejecting}
+        returnFocusTo={rejectButton}
       />
     </div>
   );
@@ -131,10 +143,12 @@ function RejectDialog({
   invoice,
   open,
   onOpenChange,
+  returnFocusTo,
 }: {
   invoice: Invoice;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  returnFocusTo: React.RefObject<HTMLElement | null>;
 }) {
   const [note, setNote] = useState("");
   const lifecycle = useInvoiceLifecycle(invoice.id);
@@ -154,7 +168,7 @@ function RejectDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent returnFocusTo={returnFocusTo}>
         <form onSubmit={onSubmit} noValidate>
           <DialogHeader>
             <DialogTitle>Send {invoice.number} back?</DialogTitle>

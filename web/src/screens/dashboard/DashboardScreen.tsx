@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { InvoiceCards } from "@/components/InvoiceCards";
 import { EmptyState, LoadError, Loading, PageHeader } from "@/components/Page";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -99,7 +100,7 @@ export function DashboardScreen() {
           {data.awaitingApprovalCount > 0 ? (
             <Link
               to="/invoices?status=PENDING_APPROVAL"
-              className="text-sm font-medium text-app-accent underline-offset-4 hover:underline"
+              className="-my-3 inline-block py-3 text-sm font-medium text-app-accent underline-offset-4 hover:underline"
             >
               See all {data.awaitingApprovalCount}
             </Link>
@@ -123,7 +124,7 @@ export function DashboardScreen() {
           </h2>
           <Link
             to="/invoices"
-            className="text-sm font-medium text-app-accent underline-offset-4 hover:underline"
+            className="-my-3 inline-block py-3 text-sm font-medium text-app-accent underline-offset-4 hover:underline"
           >
             See all
           </Link>
@@ -153,13 +154,17 @@ export function DashboardScreen() {
   );
 }
 
-/** The same five columns for both lists on this page, so they read as one thing. */
+/**
+ * The same five columns for both lists on this page, so they read as one
+ * thing. Cards on a phone (see InvoiceCards), the table from `sm`.
+ */
 function InvoiceRows({ invoices }: { invoices: InvoiceSummary[] }) {
   return (
     // The table scrolls inside this container rather than widening the page —
     // the quality floor asks that the page itself never scroll sideways.
     <div className="overflow-x-auto">
-      <Table className="min-w-[560px]">
+      <InvoiceCards invoices={invoices} />
+      <Table className="hidden min-w-[560px] sm:table">
         <TableHeader>
           <TableRow>
             <TableHead>Number</TableHead>
@@ -171,14 +176,15 @@ function InvoiceRows({ invoices }: { invoices: InvoiceSummary[] }) {
         </TableHeader>
         <TableBody>
           {invoices.map((invoice) => (
-            <TableRow key={invoice.id}>
+            <TableRow key={invoice.id} className="relative">
               <TableCell>
                 {/* A real link, so the row can be opened with the keyboard,
                     middle-clicked into a new tab, and read by a screen reader
-                    as the thing it is. */}
+                    as the thing it is. The `after:` layer stretches it over
+                    the row, so the whole row is the tap target. */}
                 <Link
                   to={`/invoices/${invoice.id}`}
-                  className="font-mono text-app-accent underline-offset-4 hover:underline"
+                  className="font-mono text-app-accent underline-offset-4 after:absolute after:inset-0 hover:underline"
                 >
                   {invoice.number}
                 </Link>

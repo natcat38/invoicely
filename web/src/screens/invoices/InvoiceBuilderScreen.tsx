@@ -338,12 +338,12 @@ function Builder({ existing }: { existing?: Invoice }) {
           <Button
             type="button"
             variant="ghost"
-            className="h-11 flex-1 md:h-8 md:flex-none"
+            className="flex-1 md:flex-none"
             onClick={() => navigate(-1)}
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={saving} className="h-11 flex-1 md:h-8 md:flex-none">
+          <Button type="submit" disabled={saving} className="flex-1 md:flex-none">
             {saving ? "Saving…" : existing ? "Save changes" : "Create invoice"}
           </Button>
         </div>

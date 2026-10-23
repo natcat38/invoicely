@@ -42,6 +42,19 @@ export function AppShell() {
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[16rem_1fr]">
+      {/* First tab stop on every page: jumps past the nav to the content.
+          Hidden until it has focus. It moves focus itself instead of using
+          href="#main", which would add "#main" to the URL and a history entry. */}
+      <a
+        href="#main"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("main")?.focus();
+        }}
+        className="fixed top-2 left-2 z-50 -translate-y-20 rounded-md bg-app-surface px-4 py-3 text-sm font-medium text-app-text shadow-md outline-none focus:translate-y-0 focus:ring-2 focus:ring-app-accent"
+      >
+        Skip to content
+      </a>
       {/* Phones. `sticky` keeps the menu reachable on a long page without
           taking the page out of the flow the way `fixed` would. */}
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between bg-app-sidebar px-4 text-sidebar-foreground md:hidden">
@@ -53,9 +66,9 @@ export function AppShell() {
           <SheetTrigger asChild>
             <Button
               variant="ghost"
-              size="icon-lg"
+              size="icon"
               aria-label="Menu"
-              className="size-11 text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+              className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
             >
               <MenuIcon />
             </Button>
@@ -78,7 +91,7 @@ export function AppShell() {
       {/* min-w-0 so a wide table inside scrolls in its own container instead of
           stretching the grid column and scrolling the whole page sideways —
           the Design Direction's quality floor asks for exactly that. */}
-      <main className="min-w-0 p-6">
+      <main id="main" tabIndex={-1} className="min-w-0 p-6 outline-none">
         <Outlet />
       </main>
     </div>
@@ -138,8 +151,9 @@ function SidebarContent({ items, onNavigate }: { items: NavItem[]; onNavigate?: 
         </div>
         <Button
           variant="ghost"
+          size="sm"
           onClick={signOut}
-          className="h-11 w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-white md:h-7 md:text-[0.8rem]"
+          className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-white"
         >
           Sign out
         </Button>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useAuth } from "@/auth/useAuth";
 import { InvoiceDocument } from "@/components/document/InvoiceDocument";
@@ -26,6 +26,8 @@ export function InvoiceDetailScreen() {
   const invoiceId = Number(id);
   const { session } = useAuth();
   const [payingOpen, setPayingOpen] = useState(false);
+  // The "Record payment" button, so closing the dialog can give focus back to it.
+  const payButton = useRef<HTMLButtonElement>(null);
 
   const invoice = useInvoice(invoiceId);
   usePageTitle(invoice.data?.number ?? "Invoice");
@@ -42,7 +44,7 @@ export function InvoiceDetailScreen() {
   return (
     <div className="space-y-6">
       <nav aria-label="Breadcrumb" className="text-sm text-app-muted">
-        <Link to="/invoices" className="underline-offset-4 hover:underline">
+        <Link to="/invoices" className="-my-3 inline-block py-3 underline-offset-4 hover:underline">
           Invoices
         </Link>
         <span className="mx-2" aria-hidden="true">
@@ -60,8 +62,16 @@ export function InvoiceDetailScreen() {
           invoice={data}
           role={session!.user.role}
           onRecordPayment={() => setPayingOpen(true)}
+          recordPaymentRef={payButton}
         />
       </header>
+
+      {/* Staff lose every button once they submit. Say why, and what next. */}
+      {data.status === "PENDING_APPROVAL" && !isOwner ? (
+        <p className="text-sm text-app-muted">
+          Waiting for the owner to approve. You cannot edit it while it is pending.
+        </p>
+      ) : null}
 
       {/* A rejected invoice carries the owner's note back to the drafter. It
           goes above everything else because it is the reason this invoice is
@@ -108,7 +118,12 @@ export function InvoiceDetailScreen() {
       ) : null}
 
       {isOwner ? (
-        <PaymentDialog invoice={data} open={payingOpen} onOpenChange={setPayingOpen} />
+        <PaymentDialog
+          invoice={data}
+          open={payingOpen}
+          onOpenChange={setPayingOpen}
+          returnFocusTo={payButton}
+        />
       ) : null}
     </div>
   );

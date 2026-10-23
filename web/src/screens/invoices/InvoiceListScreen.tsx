@@ -1,4 +1,5 @@
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
+import { InvoiceCards } from "@/components/InvoiceCards";
 import { EmptyState, LoadError, Loading, PageHeader } from "@/components/Page";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,6 @@ export function InvoiceListScreen() {
     hasFilters,
     clearFilters,
   } = useInvoiceList();
-  const navigate = useNavigate();
 
   return (
     <div>
@@ -126,11 +126,12 @@ export function InvoiceListScreen() {
 
       {invoices.data && invoices.data.content.length > 0 ? (
         <>
-          {/* The Table component already scrolls its own overflow (see
-              ui/table.tsx); the min-width is what keeps six columns from
-              collapsing into unreadable slivers at 375px instead of just
-              scrolling. */}
-          <Table className="min-w-[720px]">
+          {/* Phones get cards (a six-column table does not fit); from `sm`
+              the table. The Table component scrolls its own overflow (see
+              ui/table.tsx), and the min-width keeps its columns from
+              collapsing into slivers on a narrow tablet. */}
+          <InvoiceCards invoices={invoices.data.content} />
+          <Table className="hidden min-w-[720px] sm:table">
             <TableHeader>
               <TableRow>
                 <TableHead>Number</TableHead>
@@ -143,23 +144,16 @@ export function InvoiceListScreen() {
             </TableHeader>
             <TableBody>
               {invoices.data.content.map((invoice) => (
-                <TableRow
-                  key={invoice.id}
-                  className="cursor-pointer"
-                  // Convenience for a mouse click anywhere else in the row.
-                  // The <Link> below is what actually makes the row reachable
-                  // by keyboard and middle-clickable — an onClick on the <tr>
-                  // alone would offer neither.
-                  onClick={() => navigate(`/invoices/${invoice.id}`)}
-                >
+                // `relative` is the anchor for the link's `after:` layer below.
+                <TableRow key={invoice.id} className="relative cursor-pointer">
                   <TableCell className="font-mono">
+                    {/* A real link, so the row is reachable by keyboard and
+                        middle-clickable. The `after:` layer stretches it over
+                        the whole row, so a click anywhere in the row follows
+                        it and the tap target is the row, not 18px of text. */}
                     <Link
                       to={`/invoices/${invoice.id}`}
-                      className="text-app-accent underline-offset-4 hover:underline"
-                      // Without this, clicking the link also fires the row's
-                      // onClick above and pushes the same destination onto
-                      // history twice.
-                      onClick={(event) => event.stopPropagation()}
+                      className="text-app-accent underline-offset-4 after:absolute after:inset-0 hover:underline"
                     >
                       {invoice.number}
                     </Link>
