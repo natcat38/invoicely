@@ -4,7 +4,7 @@ import { useAuth } from "@/auth/useAuth";
 import { ApiError } from "@/lib/api";
 import type { StaffMember } from "@/lib/types";
 import { dateOfInstant } from "@/lib/format";
-import { EmptyState, Loading, LoadError, PageHeader } from "@/components/Page";
+import { EmptyState, LoadError, PageHeader, TableSkeleton } from "@/components/Page";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,7 +83,7 @@ export function TeamScreen() {
         actions={<Button onClick={() => setAddOpen(true)}>Add staff</Button>}
       />
 
-      {team.isPending ? <Loading label="Loading team…" /> : null}
+      {team.isPending ? <TableSkeleton rows={3} label="Loading team…" /> : null}
 
       {team.isError ? <LoadError error={team.error} onRetry={() => team.refetch()} /> : null}
 

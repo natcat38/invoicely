@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api";
 import type { Client } from "@/lib/types";
 import { useDebounced } from "@/lib/hooks";
-import { EmptyState, Loading, LoadError, PageHeader } from "@/components/Page";
+import { EmptyState, LoadError, PageHeader, TableSkeleton } from "@/components/Page";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -143,7 +143,7 @@ export function ClientsScreen() {
         </div>
       </div>
 
-      {clients.isPending ? <Loading label="Loading clients…" /> : null}
+      {clients.isPending ? <TableSkeleton label="Loading clients…" /> : null}
 
       {clients.isError ? (
         <LoadError error={clients.error} onRetry={() => clients.refetch()} />

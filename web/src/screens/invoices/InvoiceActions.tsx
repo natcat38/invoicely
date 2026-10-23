@@ -2,8 +2,20 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api";
+import { money } from "@/lib/format";
 import type { Invoice, Role } from "@/lib/types";
 import { useInvoiceLifecycle } from "./useInvoice";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -87,12 +99,12 @@ export function InvoiceActions({
           {/* An owner is both maker and checker, so the queue is optional for
               them — Product Scope §5.3 gives them a direct Send. */}
           {isOwner ? (
-            <Button
+            <ConfirmSend
+              invoice={invoice}
+              label="Send"
               disabled={lifecycle.isPending}
-              onClick={() => run("send", `${invoice.number} sent.`)}
-            >
-              Send
-            </Button>
+              onConfirm={() => run("send", `${invoice.number} sent.`)}
+            />
           ) : null}
         </>
       ) : null}
@@ -107,12 +119,12 @@ export function InvoiceActions({
           >
             Reject
           </Button>
-          <Button
+          <ConfirmSend
+            invoice={invoice}
+            label="Approve & send"
             disabled={lifecycle.isPending}
-            onClick={() => run("send", `${invoice.number} approved and sent.`)}
-          >
-            Approve &amp; send
-          </Button>
+            onConfirm={() => run("send", `${invoice.number} approved and sent.`)}
+          />
         </>
       ) : null}
 
@@ -129,6 +141,73 @@ export function InvoiceActions({
         returnFocusTo={rejectButton}
       />
     </div>
+  );
+}
+
+/**
+ * A send button that asks first.
+ *
+ * <p>Sending is the one step that cannot be taken back: it locks the GST rate
+ * and the invoice number, and the invoice can no longer be edited. On a phone
+ * the button sits next to Reject, so one mis-tap is enough. The dialog says
+ * what will be sent, to whom and for how much.
+ *
+ * <p>Built on `AlertDialog`, which traps focus inside, closes on Escape and
+ * returns focus to the button that opened it. It opens on Cancel, so pressing
+ * Enter straight away does nothing irreversible.
+ */
+function ConfirmSend({
+  invoice,
+  label,
+  disabled,
+  onConfirm,
+}: {
+  invoice: Invoice;
+  /** The button's text, which is also the confirm button's text. */
+  label: string;
+  disabled: boolean;
+  /** Does the send. Resolves when it has finished, whether or not it worked. */
+  onConfirm: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  async function confirm() {
+    setSending(true);
+    await onConfirm();
+    setSending(false);
+    setOpen(false);
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button disabled={disabled}>{label}</Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Send {invoice.number}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Send {invoice.number} to {invoice.client.name} for {money(invoice.total)}? The GST and
+            invoice number will lock.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={sending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={sending}
+            onClick={(event) => {
+              // The primitive closes the dialog on any click; it has to stay
+              // open until the request finishes, so `confirm` closes it.
+              event.preventDefault();
+              confirm();
+            }}
+          >
+            {sending ? "Sending…" : label}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
