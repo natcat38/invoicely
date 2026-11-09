@@ -22,6 +22,12 @@ dashboard of what's outstanding, overdue, and earned this month.
 > measured) while the API wakes. The login page says so while it waits;
 > everything after that is instant. The [five-minute tour](#five-minute-tour)
 > below is the fastest way through it.
+>
+> **Live API:** [invoicely-api.onrender.com](https://invoicely-api.onrender.com/ping),
+> with interactive docs at
+> [/swagger-ui.html](https://invoicely-api.onrender.com/swagger-ui.html) and the
+> OpenAPI document at [/v3/api-docs](https://invoicely-api.onrender.com/v3/api-docs).
+> The same cold start applies.
 
 ![The owner dashboard: outstanding, overdue and revenue this month, the approval queue, and recent invoices](docs/images/dashboard.png)
 
@@ -80,7 +86,9 @@ So this one is deliberately built around three of them:
   sends. That is enforced in the service layer with role checks that are kept
   and tested separately from the state-machine checks, because "you may not do
   that" (403) and "not from this status" (409) are different failures that
-  happen to look alike from the outside.
+  happen to look alike from the outside. The owner may send their own draft
+  directly: in a small business the owner is the final approver, so a second
+  sign-off would have no one to give it. Staff can never send.
 - **Money that has to agree with itself.** `BigDecimal` throughout, rounded in
   exactly one place, with GST snapshotted at send so that changing the rate
   never rewrites an invoice a client already holds. The one piece of
@@ -309,9 +317,15 @@ Interactive docs, once the app is running: `http://localhost:8080/swagger-ui.htm
 `GET /v3/api-docs` and the Swagger UI paths are also open without a token,
 since the documentation itself carries no data.
 
-The two open endpoints are throttled: ten failed attempts from one IP address
-in fifteen minutes answers `429` with a `Retry-After` header until the window
-rolls over. Only failures count, so logging in successfully clears the tally.
+The two open endpoints are throttled: ten failed attempts from one network
+address in fifteen minutes answers `429` with a `Retry-After` header until the
+window rolls over. Only failures count, so logging in successfully clears the
+tally. The address is the direct connection's, not a forwarded header, so
+behind Render's proxy every caller shares one bucket: ten failures by anyone
+pause sign-in for everyone for up to fifteen minutes. Reading the forwarded
+address safely needs a trusted-proxy list, which this demo does not configure
+([ADR-0010](docs/adr/0010-session-invalidation-and-login-throttling.md),
+[ADR-0013](docs/adr/0013-protect-demo-accounts.md)).
 
 ## Design decisions
 
@@ -432,8 +446,10 @@ src/main/java/com/invoicely/
 docs/
   Invoice_Product_Scope.md    behaviour, roles, lifecycle, GST rules
   Invoice_Tech_Scope.md       stack, schema, task breakdown
-  Invoice_Design_Direction.md Phase 2 UI layers (not yet built)
+  Invoice_Design_Direction.md Phase 2 UI layers (built; see web/)
   adr/                        the decision records linked above
+web/          React UI: the app layer and the paper-document layer
+reports/      Phase 1 audit, UX audit, public-repo audit records
 knowledge/    OKF-validated domain concepts (lifecycle, money, roles)
 ```
 

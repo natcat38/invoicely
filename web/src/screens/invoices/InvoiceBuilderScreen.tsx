@@ -86,6 +86,12 @@ function fromApi(error: ApiError): { mapped: FieldErrors; rest: number } {
   return { mapped, rest };
 }
 
+/** A saved price as the form shows it: "120.00" for whole cents, "0.125" otherwise. */
+function priceForInput(price: number): string {
+  const cents = price.toFixed(2);
+  return Number(cents) === price ? cents : String(price);
+}
+
 /** The message under a field; `aria-describedby` on the input points at its id. */
 function FieldMessage({ id, errors }: { id: string; errors: FieldErrors }) {
   return errors[id] ? (
@@ -158,7 +164,10 @@ function Builder({ existing }: { existing?: Invoice }) {
       ? existing.lineItems.map((line) => ({
           description: line.description,
           quantity: String(line.quantity),
-          unitPrice: line.unitPrice.toFixed(2),
+          // Two decimals when the price is whole cents (120 -> "120.00"), otherwise
+          // every digit the API kept: it stores up to 4, and rounding here would
+          // silently change the price on the next save.
+          unitPrice: priceForInput(line.unitPrice),
         }))
       : [{ ...BLANK_LINE }],
   );

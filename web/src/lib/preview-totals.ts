@@ -20,23 +20,30 @@
  *       the total is their sum — not a rounding of subtotal × (1 + rate).
  * </ul>
  *
- * <p>All of it is done in integers. JavaScript numbers are binary floats:
+ * <p>All of it is done in integers (BigInt, so a large invoice cannot
+ * outgrow a float's 53 bits of precision). JavaScript numbers are binary floats:
  * `0.1 * 3` is `0.30000000000000004`, and `Math.round` on a value that is a
  * hair below `.5` rounds the wrong way. Scaling to integers first means the
  * HALF_UP rule (ADR-0006) lands on exactly the same cent the server picks.
  */
 
-/** Quantities carry up to 4 decimals; prices, 2. Both per the API's validation. */
-const QUANTITY_SCALE = 10_000;
-const PRICE_SCALE = 100;
 /**
- * A line total lands in units of 1e-6 dollars — quantity's 1e-4 times price's
- * 1e-2. Money is carried in cents from there on, so this is the divisor that
- * takes a line total to cents (1e-6 / 1e-2 = 1e-4).
+ * Quantities and unit prices both carry up to 4 decimals, matching the API's
+ * `@Digits(fraction = 4)` on each (InvoiceRequest.java) and the numeric(19,4)
+ * columns. Rounding prices to 2 decimals here would show 1.30 for 10 x 0.125
+ * while the server says 1.25.
  */
-const MICROS_PER_CENT = QUANTITY_SCALE;
+const QUANTITY_SCALE = 10_000n;
+const PRICE_SCALE = 10_000n;
+/** Money leaves this module in cents. */
+const CENTS_PER_DOLLAR = 100;
+/**
+ * A line total lands in units of 1e-8 dollars: quantity's 1e-4 times price's
+ * 1e-4. This divisor takes that to cents (1e-8 / 1e-2 = 1e-6).
+ */
+const UNITS_PER_CENT = (QUANTITY_SCALE * PRICE_SCALE) / 100n;
 /** GST rates are stored with 4 decimals, e.g. 0.0900. */
-const RATE_SCALE = 10_000;
+const RATE_SCALE = 10_000n;
 
 export type PreviewLine = { quantity: string; unitPrice: string };
 
@@ -58,9 +65,9 @@ export type PreviewTotals = {
  * validated as positive — so this only has to be right for that case, which
  * the assertion documents rather than assumes silently.
  */
-function divideHalfUp(numerator: number, denominator: number): number {
-  if (numerator < 0) throw new Error("divideHalfUp expects non-negative amounts");
-  return Math.floor((2 * numerator + denominator) / (2 * denominator));
+function divideHalfUp(numerator: bigint, denominator: bigint): bigint {
+  if (numerator < 0n) throw new Error("divideHalfUp expects non-negative amounts");
+  return (2n * numerator + denominator) / (2n * denominator);
 }
 
 /**
@@ -68,16 +75,23 @@ function divideHalfUp(numerator: number, denominator: number): number {
  * zero — a half-typed "12." must render as a preview, not as NaN across the
  * whole document.
  */
-function scaled(value: string, scale: number): number {
+function scaled(value: string, scale: bigint): bigint {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) return 0;
-  return Math.round(parsed * scale);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0n;
+  return BigInt(Math.round(parsed * Number(scale)));
+}
+
+function lineUnits(line: PreviewLine): bigint {
+  return scaled(line.quantity, QUANTITY_SCALE) * scaled(line.unitPrice, PRICE_SCALE);
+}
+
+function dollars(cents: bigint): number {
+  return Number(cents) / CENTS_PER_DOLLAR;
 }
 
 /** One line's total, rounded for display. The subtotal does not use this. */
 export function previewLineTotal(line: PreviewLine): number {
-  const micros = scaled(line.quantity, QUANTITY_SCALE) * scaled(line.unitPrice, PRICE_SCALE);
-  return divideHalfUp(micros, MICROS_PER_CENT) / PRICE_SCALE;
+  return dollars(divideHalfUp(lineUnits(line), UNITS_PER_CENT));
 }
 
 /**
@@ -88,19 +102,16 @@ export function previewLineTotal(line: PreviewLine): number {
  */
 export function previewTotals(lines: PreviewLine[], gstRate: number | null): PreviewTotals {
   // Summed unrounded, exactly as InvoiceTotals.of does, then rounded once.
-  const subtotalMicros = lines.reduce(
-    (sum, line) => sum + scaled(line.quantity, QUANTITY_SCALE) * scaled(line.unitPrice, PRICE_SCALE),
-    0,
-  );
-  const subtotalCents = divideHalfUp(subtotalMicros, MICROS_PER_CENT);
+  const subtotalUnits = lines.reduce((sum, line) => sum + lineUnits(line), 0n);
+  const subtotalCents = divideHalfUp(subtotalUnits, UNITS_PER_CENT);
 
   const gstCents =
-    gstRate === null ? 0 : divideHalfUp(subtotalCents * scaled(String(gstRate), RATE_SCALE), RATE_SCALE);
+    gstRate === null ? 0n : divideHalfUp(subtotalCents * scaled(String(gstRate), RATE_SCALE), RATE_SCALE);
 
   return {
-    subtotal: subtotalCents / PRICE_SCALE,
+    subtotal: dollars(subtotalCents),
     gstRate,
-    gst: gstCents / PRICE_SCALE,
-    total: (subtotalCents + gstCents) / PRICE_SCALE,
+    gst: dollars(gstCents),
+    total: dollars(subtotalCents + gstCents),
   };
 }

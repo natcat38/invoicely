@@ -1,0 +1,8 @@
+# Weekly bump PRs for pinned GitHub Actions, including the OKF validator,
+# which is pinned to a full commit SHA (see okf-portfolio-standard's README).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

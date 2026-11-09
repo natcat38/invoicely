@@ -59,6 +59,23 @@ describe("previewTotals", () => {
     expect(totals.subtotal).toBe(0.02);
   });
 
+  it("keeps a unit price's third and fourth decimals, as the API does", () => {
+    // The API stores prices to 4 decimals. 10 x 0.125 is exactly 1.25 on the
+    // server; rounding the price to 0.13 first would show 1.30.
+    expect(previewTotals([{ quantity: "10", unitPrice: "0.125" }], null).subtotal).toBe(1.25);
+    // 3 x 0.3333 = 0.9999, rounded once to 1.00.
+    expect(previewTotals([{ quantity: "3", unitPrice: "0.3333" }], null).subtotal).toBe(1);
+    expect(previewLineTotal({ quantity: "1", unitPrice: "0.0050" })).toBe(0.01);
+  });
+
+  it("stays exact on a very large invoice", () => {
+    // 1,000,000 x 123,456,789.1234 needs more than a float's 53 bits once
+    // scaled to integers; BigInt keeps every digit.
+    expect(previewTotals([{ quantity: "1000000", unitPrice: "123456789.1234" }], null).subtotal).toBe(
+      123456789123400,
+    );
+  });
+
   it("survives a half-typed form without producing NaN", () => {
     const totals = previewTotals(
       [
