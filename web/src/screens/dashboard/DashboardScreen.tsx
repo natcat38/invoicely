@@ -164,7 +164,7 @@ function InvoiceRows({ invoices }: { invoices: InvoiceSummary[] }) {
     // the quality floor asks that the page itself never scroll sideways.
     <div className="overflow-x-auto">
       <InvoiceCards invoices={invoices} />
-      <Table className="hidden min-w-[560px] sm:table">
+      <Table className="hidden min-w-[560px] lg:table">
         <TableHeader>
           <TableRow>
             <TableHead>Number</TableHead>

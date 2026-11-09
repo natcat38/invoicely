@@ -76,6 +76,40 @@ export function TeamScreen() {
     }
   }
 
+  // One action for both the phone card and the table row.
+  function rowAction(member: StaffMember) {
+    // The API answers 409 if the owner tries to deactivate their
+    // own account — there would be nobody left who could run the
+    // business. Hiding the button on that one row is UX on top of
+    // that rule, not a replacement for it: the API still refuses
+    // the request regardless of what this screen renders.
+    const isSelf = member.id === session?.user.userId;
+    return isSelf ? null : member.active ? (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-destructive"
+        onClick={() => setDeactivating(member)}
+      >
+        Deactivate
+      </Button>
+    ) : (
+      <Button
+        variant="ghost"
+        size="sm"
+        // Shared across every row, like the archive button on
+        // ClientsScreen: one mutation instance, so
+        // reactivating one person briefly disables the button
+        // on all rows rather than tracking per-row state for
+        // a request this quick.
+        disabled={setActive.isPending}
+        onClick={() => reactivate(member)}
+      >
+        Reactivate
+      </Button>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -95,30 +129,40 @@ export function TeamScreen() {
       ) : null}
 
       {team.data && team.data.length > 0 ? (
-        // The Table component scrolls its own overflow (ui/table.tsx); the
-        // min-width keeps seven columns from being squeezed unreadable at
-        // 375px instead of just scrolling sideways inside the table.
-        <Table className="min-w-[760px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Invoices created</TableHead>
-              <TableHead>Last active</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {team.data.map((member) => {
-              // The API answers 409 if the owner tries to deactivate their
-              // own account — there would be nobody left who could run the
-              // business. Hiding the button on that one row is UX on top of
-              // that rule, not a replacement for it: the API still refuses
-              // the request regardless of what this screen renders.
-              const isSelf = member.id === session?.user.userId;
-              return (
+        // Cards below `lg`, the table from `lg` (owner decision 2026-11-09):
+        // as a table the Deactivate / Reactivate column sat off-screen on a
+        // phone, behind a sideways scroll nothing pointed to.
+        <>
+          <ul className="space-y-2 lg:hidden">
+            {team.data.map((member) => (
+              <li key={member.id} className="rounded-lg border border-app-border bg-app-surface p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium text-app-text">{member.name}</p>
+                  <TeamStatusBadge active={member.active} />
+                </div>
+                <p className="mt-1 break-all text-sm text-app-muted">{member.email}</p>
+                <p className="mt-1 text-sm text-app-muted">
+                  {ROLE_LABELS[member.role]} · {member.invoicesCreated} invoices · last active{" "}
+                  {member.lastActive ? dateOfInstant(member.lastActive) : "—"}
+                </p>
+                <div className="mt-3 flex justify-end empty:hidden">{rowAction(member)}</div>
+              </li>
+            ))}
+          </ul>
+          <Table className="hidden min-w-[760px] lg:table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead className="text-right">Invoices created</TableHead>
+                <TableHead>Last active</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {team.data.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium text-app-text">{member.name}</TableCell>
                   <TableCell>{member.email}</TableCell>
@@ -128,37 +172,12 @@ export function TeamScreen() {
                   <TableCell>
                     <TeamStatusBadge active={member.active} />
                   </TableCell>
-                  <TableCell className="text-right">
-                    {isSelf ? null : member.active ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => setDeactivating(member)}
-                      >
-                        Deactivate
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        // Shared across every row, like the archive button on
-                        // ClientsScreen: one mutation instance, so
-                        // reactivating one person briefly disables the button
-                        // on all rows rather than tracking per-row state for
-                        // a request this quick.
-                        disabled={setActive.isPending}
-                        onClick={() => reactivate(member)}
-                      >
-                        Reactivate
-                      </Button>
-                    )}
-                  </TableCell>
+                  <TableCell className="text-right">{rowAction(member)}</TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        </>
       ) : null}
 
       <AddStaffDialog open={addOpen} onOpenChange={setAddOpen} />

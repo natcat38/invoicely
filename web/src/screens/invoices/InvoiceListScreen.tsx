@@ -126,12 +126,12 @@ export function InvoiceListScreen() {
 
       {invoices.data && invoices.data.content.length > 0 ? (
         <>
-          {/* Phones get cards (a six-column table does not fit); from `sm`
-              the table. The Table component scrolls its own overflow (see
-              ui/table.tsx), and the min-width keeps its columns from
-              collapsing into slivers on a narrow tablet. */}
+          {/* Cards below `lg`, the table from `lg` (owner decision
+              2026-11-09, Design Direction): between 640 and 1024 px the
+              sidebar left the six columns too little room and Total,
+              Balance due and Due date scrolled out of sight. */}
           <InvoiceCards invoices={invoices.data.content} />
-          <Table className="hidden min-w-[720px] sm:table">
+          <Table className="hidden min-w-[720px] lg:table">
             <TableHeader>
               <TableRow>
                 <TableHead>Number</TableHead>
