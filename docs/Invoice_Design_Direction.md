@@ -74,9 +74,15 @@ document. The document looks the same wherever it appears.
 ## Quality floor
 
 Visible keyboard focus, labelled forms, contrast ≥ 4.5:1, responsive to 375px
-(the page never scrolls horizontally). Invoice lists are cards below `sm`
-(number and status, client, total and due date) and a table from `sm`, where
-the table scrolls inside its container (decided 2026-10-23). Touch targets are
+(the page never scrolls horizontally). Every list (invoices, the dashboard
+queue, clients, team) is cards below `lg` and a table from `lg`, where the
+table scrolls inside its container (decided 2026-10-23 for invoices at `sm`;
+moved to `lg` and extended to clients and team on 2026-11-09, because between
+640 and 1024 px the sidebar hid up to 474 px of each table, including the row
+actions). Invoice cards show number and status, client, total and due date;
+client cards show name, contact, email and phone, and the row actions; team
+cards show name and status, email, role, invoice count and last active, and
+the row action. Touch targets are
 44px on phones (inputs, buttons, tabs, selects) and unchanged from `md`; the
 first tab stop on every page is a "Skip to content" link.
 

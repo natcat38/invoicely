@@ -18,7 +18,7 @@ import type { InvoiceSummary } from "@/lib/types";
  */
 export function InvoiceCards({ invoices }: { invoices: InvoiceSummary[] }) {
   return (
-    <ul className="space-y-2 sm:hidden">
+    <ul className="space-y-2 lg:hidden">
       {invoices.map((invoice) => (
         <li
           key={invoice.id}

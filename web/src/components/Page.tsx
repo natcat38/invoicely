@@ -106,7 +106,7 @@ export function TableSkeleton({ rows = 5, label = "Loading…" }: { rows?: numbe
             <Skeleton className="h-4 w-28" />
             <Skeleton className="h-5 w-20 rounded-full" />
             <Skeleton className="h-4 flex-1" />
-            <Skeleton className="hidden h-4 w-20 sm:block" />
+            <Skeleton className="hidden h-4 w-20 lg:block" />
           </div>
         ))}
       </div>

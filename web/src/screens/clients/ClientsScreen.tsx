@@ -117,6 +117,37 @@ export function ClientsScreen() {
     }
   }
 
+  // One set of row actions for both the phone card and the table row.
+  const rowActions = (client: Client) => (
+    <div className="flex justify-end gap-1">
+      <Button variant="ghost" size="sm" onClick={() => openEdit(client)}>
+        Edit
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        // Shared across every row, since it is one mutation
+        // instance: archiving one client briefly disables the
+        // button on all of them rather than just the one
+        // being archived. Simple, and the request is quick
+        // enough that it is not worth tracking per-row state
+        // for.
+        disabled={updateClient.isPending}
+        onClick={() => toggleArchived(client)}
+      >
+        {client.archived ? "Restore" : "Archive"}
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-destructive"
+        onClick={() => setDeletingClient(client)}
+      >
+        Delete
+      </Button>
+    </div>
+  );
+
   return (
     <div>
       <PageHeader title="Clients" actions={<Button onClick={openCreate}>New client</Button>} />
@@ -177,11 +208,26 @@ export function ClientsScreen() {
 
       {clients.data && clients.data.content.length > 0 ? (
         <>
-          {/* The Table component already scrolls its own overflow (see
-              ui/table.tsx); the min-width is what keeps five columns from
-              collapsing into unreadable slivers at 375px instead of just
-              scrolling. */}
-          <Table className="min-w-[640px]">
+          {/* Cards below `lg`, the table from `lg` (owner decision 2026-11-09):
+              as a table the Edit / Archive / Delete column sat off-screen on a
+              phone, behind a sideways scroll nothing pointed to. */}
+          <ul className="space-y-2 lg:hidden">
+            {clients.data.content.map((client) => (
+              <li key={client.id} className="rounded-lg border border-app-border bg-app-surface p-4">
+                <p className="font-medium text-app-text">{client.name}</p>
+                {client.contactPerson ? (
+                  <p className="mt-1 text-sm text-app-text">{client.contactPerson}</p>
+                ) : null}
+                {client.email || client.phone ? (
+                  <p className="mt-1 break-all text-sm text-app-muted">
+                    {[client.email, client.phone].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
+                <div className="mt-3">{rowActions(client)}</div>
+              </li>
+            ))}
+          </ul>
+          <Table className="hidden min-w-[640px] lg:table">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -198,35 +244,7 @@ export function ClientsScreen() {
                   <TableCell>{client.contactPerson ?? "—"}</TableCell>
                   <TableCell>{client.email ?? "—"}</TableCell>
                   <TableCell>{client.phone ?? "—"}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(client)}>
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        // Shared across every row, since it is one mutation
-                        // instance: archiving one client briefly disables the
-                        // button on all of them rather than just the one
-                        // being archived. Simple, and the request is quick
-                        // enough that it is not worth tracking per-row state
-                        // for.
-                        disabled={updateClient.isPending}
-                        onClick={() => toggleArchived(client)}
-                      >
-                        {client.archived ? "Restore" : "Archive"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => setDeletingClient(client)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
+                  <TableCell className="text-right">{rowActions(client)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
