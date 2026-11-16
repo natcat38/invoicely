@@ -9,8 +9,7 @@
   roles, status matrix) → `docs/Invoice_Tech_Scope.md` (stack, schema, tasks
   1–9, gotchas) → `docs/Invoice_Design_Direction.md` (Phase 2 UI layers).
 - Build in the Tech Scope's vertical slices, in order. One branch + PR per
-  slice; CI green before merge; squash-merge. After Task 1 adds `ci.yml`,
-  re-run /protect-repo so `verify` gates main.
+  slice; CI green before merge; squash-merge.
 - Money is `BigDecimal`, SGD only. Ownership boundary is `business_id` from
   the JWT; cross-business → 404. State errors 409, role errors 403.
 - One ADR in `docs/adr/` per non-obvious decision, written when decided.
